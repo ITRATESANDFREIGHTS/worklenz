@@ -14,7 +14,8 @@ import { IProjectFinanceGroup, IProjectFinanceTask } from '@/types/project/proje
 import { 
   updateTaskFixedCostAsync, 
   toggleTaskExpansion,
-  fetchSubTasks
+  fetchSubTasks,
+  fetchProjectFinancesSilent
 } from '@/features/projects/finance/project-finance.slice';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { setSelectedTaskId, setShowTaskDrawer, fetchTask } from '@/features/task-drawer/task-drawer.slice';
@@ -48,6 +49,7 @@ const FinanceTable = ({
   
   // Get the latest task groups from Redux store
   const taskGroups = useAppSelector((state) => state.projectFinances.taskGroups);
+  const { activeGroup, billableFilter } = useAppSelector((state) => state.projectFinances);
   
   // Auth and permissions
   const auth = useAuthService();
@@ -169,6 +171,16 @@ const FinanceTable = ({
       // Update the task fixed cost - this will automatically trigger hierarchical recalculation
       // The Redux slice handles parent task updates through recalculateTaskHierarchy
       await dispatch(updateTaskFixedCostAsync({ taskId, groupId: table.group_id, fixedCost })).unwrap();
+      
+      // Trigger a silent refresh with expansion reset to show updated data clearly
+      if (projectId) {
+        dispatch(fetchProjectFinancesSilent({ 
+          projectId, 
+          groupBy: activeGroup, 
+          billableFilter, 
+          resetExpansions: true 
+        }));
+      }
       
       setSelectedTask(null);
       setEditingFixedCostValue(null);

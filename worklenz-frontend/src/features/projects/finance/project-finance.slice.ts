@@ -24,7 +24,7 @@ const calculateTaskCosts = (task: IProjectFinanceTask) => {
   const hours = secondsToHours(task.estimated_seconds || 0);
   const timeLoggedHours = secondsToHours(task.total_time_logged_seconds || 0);
   
-  const totalBudget = task.estimated_cost || 0;
+  const totalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
   // task.total_actual already includes actual_cost_from_logs + fixed_cost from backend
   const totalActual = task.total_actual || 0;
   const variance = totalActual - totalBudget;
@@ -114,8 +114,8 @@ const recalculateTaskHierarchy = (tasks: IProjectFinanceTask[]): IProjectFinance
         total_actual: totalActual,
         estimated_seconds: subtaskTotals.estimated_seconds,
         total_time_logged_seconds: subtaskTotals.total_time_logged_seconds,
-        total_budget: totalEstimatedCost,
-        variance: totalActual - totalEstimatedCost
+        total_budget: totalEstimatedCost + totalFixedCost,
+        variance: totalActual - (totalEstimatedCost + totalFixedCost)
       };
       
       return updatedTask;
@@ -217,9 +217,14 @@ export const fetchProjectFinances = createAsyncThunk(
 
 export const fetchProjectFinancesSilent = createAsyncThunk(
   'projectFinances/fetchProjectFinancesSilent',
-  async ({ projectId, groupBy, billableFilter }: { projectId: string; groupBy: GroupTypes; billableFilter?: BillableFilterType }) => {
+  async ({ projectId, groupBy, billableFilter, resetExpansions = false }: { 
+    projectId: string; 
+    groupBy: GroupTypes; 
+    billableFilter?: BillableFilterType;
+    resetExpansions?: boolean;
+  }) => {
     const response = await projectFinanceApiService.getProjectTasks(projectId, groupBy, billableFilter);
-    return response.body;
+    return { ...response.body, resetExpansions };
   }
 );
 
@@ -256,6 +261,22 @@ export const projectFinancesSlice = createSlice({
     },
     setBillableFilter: (state, action: PayloadAction<BillableFilterType>) => {
       state.billableFilter = action.payload;
+    },
+    resetAllTaskExpansions: (state) => {
+      // Recursive function to reset all expansion states
+      const resetExpansionStates = (tasks: IProjectFinanceTask[]): IProjectFinanceTask[] => {
+        return tasks.map(task => ({
+          ...task,
+          show_sub_tasks: false,
+          sub_tasks: task.sub_tasks ? resetExpansionStates(task.sub_tasks) : task.sub_tasks
+        }));
+      };
+
+      // Reset expansion states for all groups
+      state.taskGroups = state.taskGroups.map(group => ({
+        ...group,
+        tasks: resetExpansionStates(group.tasks)
+      }));
     },
     updateTaskFixedCost: (state, action: PayloadAction<{ taskId: string; groupId: string; fixedCost: number }>) => {
       const { taskId, groupId, fixedCost } = action.payload;
@@ -368,45 +389,56 @@ export const projectFinancesSlice = createSlice({
         state.loading = false;
       })
       .addCase(fetchProjectFinancesSilent.fulfilled, (state, action) => {
-        // Helper function to preserve expansion state and sub_tasks during updates
-        const preserveExpansionState = (existingTasks: IProjectFinanceTask[], newTasks: IProjectFinanceTask[]): IProjectFinanceTask[] => {
-          return newTasks.map(newTask => {
-            const existingTask = existingTasks.find(t => t.id === newTask.id);
-            if (existingTask) {
-              // Preserve expansion state and subtasks
-              const updatedTask = {
-                ...newTask,
-                show_sub_tasks: existingTask.show_sub_tasks,
-                sub_tasks: existingTask.sub_tasks ? 
-                  preserveExpansionState(existingTask.sub_tasks, newTask.sub_tasks || []) : 
-                  newTask.sub_tasks
-              };
-              return updatedTask;
-            }
-            return newTask;
-          });
-        };
+        const { resetExpansions, ...payload } = action.payload;
+        
+        if (resetExpansions) {
+          // Reset all expansions and load fresh data
+          const recalculatedGroups = payload.groups.map(group => ({
+            ...group,
+            tasks: recalculateTaskHierarchy(group.tasks)
+          }));
+          state.taskGroups = recalculatedGroups;
+        } else {
+          // Helper function to preserve expansion state and sub_tasks during updates
+          const preserveExpansionState = (existingTasks: IProjectFinanceTask[], newTasks: IProjectFinanceTask[]): IProjectFinanceTask[] => {
+            return newTasks.map(newTask => {
+              const existingTask = existingTasks.find(t => t.id === newTask.id);
+              if (existingTask) {
+                // Preserve expansion state and subtasks
+                const updatedTask = {
+                  ...newTask,
+                  show_sub_tasks: existingTask.show_sub_tasks,
+                  sub_tasks: existingTask.sub_tasks ? 
+                    preserveExpansionState(existingTask.sub_tasks, newTask.sub_tasks || []) : 
+                    newTask.sub_tasks
+                };
+                return updatedTask;
+              }
+              return newTask;
+            });
+          };
 
-        // Update groups while preserving expansion state and applying hierarchy recalculation
-        const updatedTaskGroups = action.payload.groups.map(newGroup => {
-          const existingGroup = state.taskGroups.find(g => g.group_id === newGroup.group_id);
-          if (existingGroup) {
-            const tasksWithExpansion = preserveExpansionState(existingGroup.tasks, newGroup.tasks);
+          // Update groups while preserving expansion state and applying hierarchy recalculation
+          const updatedTaskGroups = payload.groups.map(newGroup => {
+            const existingGroup = state.taskGroups.find(g => g.group_id === newGroup.group_id);
+            if (existingGroup) {
+              const tasksWithExpansion = preserveExpansionState(existingGroup.tasks, newGroup.tasks);
+              return {
+                ...newGroup,
+                tasks: recalculateTaskHierarchy(tasksWithExpansion)
+              };
+            }
             return {
               ...newGroup,
-              tasks: recalculateTaskHierarchy(tasksWithExpansion)
+              tasks: recalculateTaskHierarchy(newGroup.tasks)
             };
-          }
-          return {
-            ...newGroup,
-            tasks: recalculateTaskHierarchy(newGroup.tasks)
-          };
-        });
+          });
+          state.taskGroups = updatedTaskGroups;
+        }
 
         // Update data without changing loading state for silent refresh
-        state.taskGroups = updatedTaskGroups;
-        state.projectRateCards = action.payload.project_rate_cards;
-        state.project = action.payload.project;
+        state.projectRateCards = payload.project_rate_cards;
+        state.project = payload.project;
         // Clear cache when data is refreshed from backend
         clearCalculationCache();
       })
@@ -472,6 +504,7 @@ export const {
   setActiveTab, 
   setActiveGroup, 
   setBillableFilter,
+  resetAllTaskExpansions,
   updateTaskFixedCost,
   updateTaskEstimatedCost,
   updateTaskTimeLogged,

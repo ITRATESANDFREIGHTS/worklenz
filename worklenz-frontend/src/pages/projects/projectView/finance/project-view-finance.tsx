@@ -2,10 +2,10 @@ import { Button, ConfigProvider, Flex, Select, Typography, message, Alert, Card,
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CaretDownFilled, DownOutlined, CalculatorOutlined } from '@ant-design/icons';
+import { CaretDownFilled, DownOutlined, CalculatorOutlined, ShrinkOutlined } from '@ant-design/icons';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import { fetchProjectFinances, setActiveTab, setActiveGroup, updateProjectFinanceCurrency, fetchProjectFinancesSilent, setBillableFilter } from '@/features/projects/finance/project-finance.slice';
+import { fetchProjectFinances, setActiveTab, setActiveGroup, updateProjectFinanceCurrency, fetchProjectFinancesSilent, setBillableFilter, resetAllTaskExpansions } from '@/features/projects/finance/project-finance.slice';
 import { changeCurrency, toggleImportRatecardsDrawer } from '@/features/finance/finance-slice';
 import { updateProjectCurrency } from '@/features/project/project.slice';
 import { projectFinanceApiService } from '@/api/project-finance-ratecard/project-finance.api.service';
@@ -116,27 +116,60 @@ const ProjectViewFinance = () => {
   }, [taskGroups]);
 
   // Silent refresh function for socket events
-  const refreshFinanceData = useCallback(() => {
+  const refreshFinanceData = useCallback((resetExpansions = false) => {
     if (projectId) {
-      dispatch(fetchProjectFinancesSilent({ projectId, groupBy: activeGroup, billableFilter }));
+      dispatch(fetchProjectFinancesSilent({ projectId, groupBy: activeGroup, billableFilter, resetExpansions }));
     }
   }, [projectId, activeGroup, billableFilter, dispatch]);
 
   // Socket event handlers
   const handleTaskEstimationChange = useCallback(() => {
-    refreshFinanceData();
+    refreshFinanceData(true); // Reset expansions when task estimation changes
   }, [refreshFinanceData]);
 
   const handleTaskTimerStop = useCallback(() => {
-    refreshFinanceData();
+    refreshFinanceData(true); // Reset expansions when timer stops (time logged changes)
   }, [refreshFinanceData]);
 
   const handleTaskProgressUpdate = useCallback(() => {
-    refreshFinanceData();
+    refreshFinanceData(true); // Reset expansions when task progress updates
   }, [refreshFinanceData]);
 
   const handleTaskBillableChange = useCallback(() => {
-    refreshFinanceData();
+    refreshFinanceData(true); // Reset expansions when billable status changes
+  }, [refreshFinanceData]);
+
+  // Additional socket event handlers for task drawer updates
+  const handleTaskNameChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task name changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskStatusChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task status changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskPriorityChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task priority changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskPhaseChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task phase changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskAssigneesChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task assignees change from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskStartDateChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task start date changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleTaskEndDateChange = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when task end date changes from drawer
+  }, [refreshFinanceData]);
+
+  const handleProjectUpdatesAvailable = useCallback(() => {
+    refreshFinanceData(true); // Reset expansions when project updates are available (includes task deletion)
   }, [refreshFinanceData]);
 
   useEffect(() => {
@@ -154,6 +187,15 @@ const ProjectViewFinance = () => {
       { event: SocketEvents.TASK_TIMER_STOP.toString(), handler: handleTaskTimerStop },
       { event: SocketEvents.TASK_PROGRESS_UPDATED.toString(), handler: handleTaskProgressUpdate },
       { event: SocketEvents.TASK_BILLABLE_CHANGE.toString(), handler: handleTaskBillableChange },
+      // Task drawer update events
+      { event: SocketEvents.TASK_NAME_CHANGE.toString(), handler: handleTaskNameChange },
+      { event: SocketEvents.TASK_STATUS_CHANGE.toString(), handler: handleTaskStatusChange },
+      { event: SocketEvents.TASK_PRIORITY_CHANGE.toString(), handler: handleTaskPriorityChange },
+      { event: SocketEvents.TASK_PHASE_CHANGE.toString(), handler: handleTaskPhaseChange },
+      { event: SocketEvents.TASK_ASSIGNEES_CHANGE.toString(), handler: handleTaskAssigneesChange },
+      { event: SocketEvents.TASK_START_DATE_CHANGE.toString(), handler: handleTaskStartDateChange },
+      { event: SocketEvents.TASK_END_DATE_CHANGE.toString(), handler: handleTaskEndDateChange },
+      { event: SocketEvents.PROJECT_UPDATES_AVAILABLE.toString(), handler: handleProjectUpdatesAvailable },
     ];
 
     // Register all event listeners
@@ -167,7 +209,7 @@ const ProjectViewFinance = () => {
         socket.off(event, handler);
       });
     };
-  }, [socket, handleTaskEstimationChange, handleTaskTimerStop, handleTaskProgressUpdate, handleTaskBillableChange]);
+  }, [socket, handleTaskEstimationChange, handleTaskTimerStop, handleTaskProgressUpdate, handleTaskBillableChange, handleTaskNameChange, handleTaskStatusChange, handleTaskPriorityChange, handleTaskPhaseChange, handleTaskAssigneesChange, handleTaskStartDateChange, handleTaskEndDateChange, handleProjectUpdatesAvailable]);
 
   const handleExport = async () => {
     if (!projectId) {
