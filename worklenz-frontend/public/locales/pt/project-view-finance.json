@@ -40,6 +40,17 @@
   "deleteConfirm": "Tem certeza?",
   "yes": "Sim",
   "no": "Não",
-  "alreadyImportedRateCardMessage": "Um cartão de taxa já foi importado. Limpe todos os cartões de taxa importados para adicionar um novo."
+  "alreadyImportedRateCardMessage": "Um cartão de taxa já foi importado. Limpe todos os cartões de taxa importados para adicionar um novo.",
+
+  "budgetOverviewTooltips": {
+    "totalBudget": "O orçamento total planejado para o projeto, incluindo custos estimados e custos fixos",
+    "totalActualCost": "O valor total realmente gasto no projeto, incluindo custos baseados em tempo e custos fixos",
+    "variance": "A diferença entre o custo real e o orçamento total. Valores positivos indicam acima do orçamento, valores negativos indicam abaixo do orçamento",
+    "utilization": "Porcentagem do orçamento consumido. Calculado como (Custo Real Total ÷ Orçamento Total) × 100%",
+    "estimated": "O custo estimado baseado em horas planejadas e taxas horárias para todas as tarefas",
+    "fixedCost": "Custos fixos adicionais adicionados às tarefas que não são baseados no rastreamento de tempo",
+    "actualCost": "Custos calculados a partir do tempo real registrado pelos membros da equipe baseado em suas taxas horárias",
+    "remaining": "O orçamento restante disponível. Valores positivos indicam orçamento restante, valores negativos indicam acima do orçamento"
+  }
 }
   

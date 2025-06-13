@@ -1,4 +1,4 @@
-import { Button, ConfigProvider, Flex, Select, Typography, message, Alert, Card, Row, Col, Statistic } from 'antd';
+import { Button, ConfigProvider, Flex, Select, Typography, message, Alert, Card, Row, Col, Statistic, Tooltip } from 'antd';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -393,96 +393,112 @@ const ProjectViewFinance = () => {
           >
             <Row gutter={[12, 8]}>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Total Budget"
-                  value={budgetStatistics.totalBudget}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  valueStyle={{ color: '#1890ff', fontSize: '16px' }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.totalBudget')}>
+                  <Statistic
+                    title="Total Budget"
+                    value={budgetStatistics.totalBudget}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    valueStyle={{ color: '#1890ff', fontSize: '16px' }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Actual Cost"
-                  value={budgetStatistics.totalActualCost}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  valueStyle={{ color: '#52c41a', fontSize: '16px' }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.totalActualCost')}>
+                  <Statistic
+                    title="Total Actual Cost"
+                    value={budgetStatistics.totalActualCost}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    valueStyle={{ color: '#52c41a', fontSize: '16px' }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Variance"
-                  value={Math.abs(budgetStatistics.totalVariance)}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  suffix={budgetStatistics.totalVariance < 0 ? ' under' : budgetStatistics.totalVariance > 0 ? ' over' : ''}
-                  valueStyle={{ 
-                    color: budgetStatistics.totalVariance > 0 ? '#ff4d4f' : '#52c41a',
-                    fontSize: '16px'
-                  }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.variance')}>
+                  <Statistic
+                    title="Variance"
+                    value={Math.abs(budgetStatistics.totalVariance)}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    suffix={budgetStatistics.totalVariance < 0 ? ' under' : budgetStatistics.totalVariance > 0 ? ' over' : ''}
+                    valueStyle={{ 
+                      color: budgetStatistics.totalVariance > 0 ? '#ff4d4f' : '#52c41a',
+                      fontSize: '16px'
+                    }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Utilization"
-                  value={budgetStatistics.budgetUtilization}
-                  precision={1}
-                  suffix="%"
-                  valueStyle={{ 
-                    color: budgetStatistics.budgetUtilization > 100 ? '#ff4d4f' : 
-                           budgetStatistics.budgetUtilization > 80 ? '#faad14' : '#52c41a',
-                    fontSize: '16px'
-                  }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.utilization')}>
+                  <Statistic
+                    title="Utilization"
+                    value={budgetStatistics.budgetUtilization}
+                    precision={1}
+                    suffix="%"
+                    valueStyle={{ 
+                      color: budgetStatistics.budgetUtilization > 100 ? '#ff4d4f' : 
+                             budgetStatistics.budgetUtilization > 80 ? '#faad14' : '#52c41a',
+                      fontSize: '16px'
+                    }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Estimated"
-                  value={budgetStatistics.totalEstimatedCost}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  valueStyle={{ color: '#722ed1', fontSize: '16px' }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.estimated')}>
+                  <Statistic
+                    title="Estimated"
+                    value={budgetStatistics.totalEstimatedCost}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    valueStyle={{ color: '#722ed1', fontSize: '16px' }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Fixed Cost"
-                  value={budgetStatistics.totalFixedCost}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  valueStyle={{ color: '#fa8c16', fontSize: '16px' }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.fixedCost')}>
+                  <Statistic
+                    title="Fixed Cost"
+                    value={budgetStatistics.totalFixedCost}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    valueStyle={{ color: '#fa8c16', fontSize: '16px' }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Time Logs"
-                  value={budgetStatistics.totalActualCost - budgetStatistics.totalFixedCost}
-                  precision={2}
-                  prefix={projectCurrency.toUpperCase()}
-                  valueStyle={{ color: '#13c2c2', fontSize: '16px' }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.actualCost')}>
+                  <Statistic
+                    title="Actual Cost"
+                    value={budgetStatistics.totalActualCost - budgetStatistics.totalFixedCost}
+                    precision={2}
+                    prefix={projectCurrency.toUpperCase()}
+                    valueStyle={{ color: '#13c2c2', fontSize: '16px' }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Statistic
-                  title="Remaining"
-                  value={budgetStatistics.totalBudget - budgetStatistics.totalActualCost}
-                  precision={2}
-                  prefix={budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '+' : ''}
-                  suffix={projectCurrency.toUpperCase()}
-                  valueStyle={{ 
-                    color: budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '#52c41a' : '#ff4d4f',
-                    fontSize: '16px'
-                  }}
-                  style={{ textAlign: 'center' }}
-                />
+                <Tooltip title={t('budgetOverviewTooltips.remaining')}>
+                  <Statistic
+                    title="Remaining"
+                    value={budgetStatistics.totalBudget - budgetStatistics.totalActualCost}
+                    precision={2}
+                    prefix={budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '+' : ''}
+                    suffix={projectCurrency.toUpperCase()}
+                    valueStyle={{ 
+                      color: budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '#52c41a' : '#ff4d4f',
+                      fontSize: '16px'
+                    }}
+                    style={{ textAlign: 'center' }}
+                  />
+                </Tooltip>
               </Col>
             </Row>
           </Card>

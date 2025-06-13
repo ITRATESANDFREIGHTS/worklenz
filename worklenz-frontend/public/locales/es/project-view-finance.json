@@ -40,6 +40,17 @@
   "deleteConfirm": "¿Estás seguro?",
   "yes": "Sí",
   "no": "No",
-  "alreadyImportedRateCardMessage": "Ya se ha importado una tarifa. Borra todas las tarifas importadas para agregar una nueva."
+  "alreadyImportedRateCardMessage": "Ya se ha importado una tarifa. Borra todas las tarifas importadas para agregar una nueva.",
+
+  "budgetOverviewTooltips": {
+    "totalBudget": "El presupuesto total planificado para el proyecto, incluyendo costos estimados y costos fijos",
+    "totalActualCost": "El monto total realmente gastado en el proyecto, incluyendo costos basados en tiempo y costos fijos",
+    "variance": "La diferencia entre el costo real y el presupuesto total. Valores positivos indican sobre-presupuesto, valores negativos indican bajo-presupuesto",
+    "utilization": "Porcentaje del presupuesto consumido. Calculado como (Costo Real Total ÷ Presupuesto Total) × 100%",
+    "estimated": "El costo estimado basado en horas planificadas y tarifas por hora para todas las tareas",
+    "fixedCost": "Costos fijos adicionales agregados a las tareas que no se basan en el seguimiento de tiempo",
+    "actualCost": "Costos calculados a partir del tiempo real registrado por los miembros del equipo basado en sus tarifas por hora",
+    "remaining": "El presupuesto restante disponible. Valores positivos indican presupuesto restante, valores negativos indican sobre-presupuesto"
+  }
 }
   

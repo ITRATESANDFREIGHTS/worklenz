@@ -40,7 +40,18 @@
     "deleteConfirm": "Are you sure ?",
     "yes": "Yes",
     "no": "No",
-    "alreadyImportedRateCardMessage": "A rate card has already been imported. Clear all imported rate cards to add a new one."
+    "alreadyImportedRateCardMessage": "A rate card has already been imported. Clear all imported rate cards to add a new one.",
+
+    "budgetOverviewTooltips": {
+      "totalBudget": "The total planned budget for the project, including estimated costs and fixed costs",
+      "totalActualCost": "The total amount actually spent on the project, including time-based costs and fixed costs",
+      "variance": "The difference between actual cost and total budget. Positive values indicate over-budget, negative values indicate under-budget",
+      "utilization": "Percentage of budget consumed. Calculated as (Total Actual Cost ÷ Total Budget) × 100%",
+      "estimated": "The estimated cost based on planned hours and hourly rates for all tasks",
+      "fixedCost": "Additional fixed costs added to tasks that are not based on time tracking",
+      "actualCost": "Costs calculated from actual time logged by team members based on their hourly rates",
+      "remaining": "The remaining budget available. Positive values indicate budget remaining, negative values indicate over-budget"
+    }
 
   }
   
