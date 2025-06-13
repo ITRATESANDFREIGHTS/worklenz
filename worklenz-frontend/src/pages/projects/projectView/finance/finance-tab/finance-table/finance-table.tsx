@@ -129,7 +129,10 @@ const FinanceTable = ({
         return <Typography.Text>{formatNumber(formattedTotals.total_actual)}</Typography.Text>;
       case FinanceTableColumnKeys.VARIANCE:
         return (
-          <Typography.Text style={{ color: formattedTotals.variance > 0 ? '#FF0000' : '#6DC376' }}>
+          <Typography.Text style={{ 
+            color: formattedTotals.variance > 0 ? '#d32f2f' : '#2e7d32',
+            fontWeight: 'bold'
+          }}>
             {formattedTotals.variance < 0 ? '+' + formatNumber(Math.abs(formattedTotals.variance)) : 
              formattedTotals.variance > 0 ? '-' + formatNumber(formattedTotals.variance) : 
              formatNumber(formattedTotals.variance)}
@@ -493,8 +496,9 @@ const FinanceTable = ({
         return (
           <Typography.Text 
             style={{ 
-              color: taskVariance > 0 ? '#FF0000' : '#6DC376',
-              fontSize: Math.max(12, 14 - level * 0.5)
+              color: taskVariance > 0 ? '#d32f2f' : '#2e7d32',
+              fontSize: Math.max(12, 14 - level * 0.5),
+              fontWeight: 'bold'
             }}
           >
             {taskVariance < 0 ? '+' + formatNumber(Math.abs(taskVariance)) : 

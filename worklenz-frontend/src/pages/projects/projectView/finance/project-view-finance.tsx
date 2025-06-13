@@ -422,11 +422,13 @@ const ProjectViewFinance = () => {
                     title="Variance"
                     value={Math.abs(budgetStatistics.totalVariance)}
                     precision={2}
-                    prefix={projectCurrency.toUpperCase()}
-                    suffix={budgetStatistics.totalVariance < 0 ? ' under' : budgetStatistics.totalVariance > 0 ? ' over' : ''}
+                    prefix={budgetStatistics.totalVariance >= 0 ? '+' : '-'}
+                    suffix={` ${projectCurrency.toUpperCase()}`}
                     valueStyle={{ 
-                      color: budgetStatistics.totalVariance > 0 ? '#ff4d4f' : '#52c41a',
-                      fontSize: '16px'
+                      color: budgetStatistics.totalVariance > 0 ? '#ff4d4f' : 
+                             budgetStatistics.totalVariance < 0 ? '#52c41a' : '#666666',
+                      fontSize: '16px',
+                      fontWeight: 'bold'
                     }}
                     style={{ textAlign: 'center' }}
                   />
@@ -488,13 +490,14 @@ const ProjectViewFinance = () => {
                 <Tooltip title={t('budgetOverviewTooltips.remaining')}>
                   <Statistic
                     title="Remaining"
-                    value={budgetStatistics.totalBudget - budgetStatistics.totalActualCost}
+                    value={Math.abs(budgetStatistics.totalBudget - budgetStatistics.totalActualCost)}
                     precision={2}
-                    prefix={budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '+' : ''}
-                    suffix={projectCurrency.toUpperCase()}
+                    prefix={budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '+' : '-'}
+                    suffix={` ${projectCurrency.toUpperCase()}`}
                     valueStyle={{ 
                       color: budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '#52c41a' : '#ff4d4f',
-                      fontSize: '16px'
+                      fontSize: '16px',
+                      fontWeight: 'bold'
                     }}
                     style={{ textAlign: 'center' }}
                   />

@@ -155,8 +155,9 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         return (
           <Typography.Text
             style={{
-              color: totals.variance > 0 ? '#FF0000' : '#6DC376',
+              color: totals.variance > 0 ? '#d32f2f' : '#2e7d32',
               fontSize: 18,
+              fontWeight: 'bold'
             }}
           >
             {totals.variance < 0 ? `+${Math.abs(totals.variance).toFixed(2)}` : 
