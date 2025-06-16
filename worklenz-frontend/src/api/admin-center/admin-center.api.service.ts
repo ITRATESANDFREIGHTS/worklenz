@@ -254,5 +254,19 @@ export const adminCenterApiService = {
     return response.data;
   },
 
+  async updateOrganizationCalculationMethod(
+    calculationMethod: 'hourly' | 'man_days',
+    hoursPerDay?: number
+  ): Promise<IServerResponse<any>> {
+    const response = await apiClient.put<IServerResponse<any>>(
+      `${rootUrl}/organization/calculation-method`,
+      { 
+        calculation_method: calculationMethod,
+        hours_per_day: hoursPerDay
+      }
+    );
+    return response.data;
+  },
+
 };
 

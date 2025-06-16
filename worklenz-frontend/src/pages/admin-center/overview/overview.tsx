@@ -8,6 +8,7 @@ import { RootState } from '@/app/store';
 import { useTranslation } from 'react-i18next';
 import OrganizationName from '@/components/admin-center/overview/organization-name/organization-name';
 import OrganizationOwner from '@/components/admin-center/overview/organization-owner/organization-owner';
+import OrganizationCalculationMethod from '@/components/admin-center/overview/organization-calculation-method/organization-calculation-method';
 import { adminCenterApiService } from '@/api/admin-center/admin-center.api.service';
 import { IOrganization, IOrganizationAdmin } from '@/types/admin-center/admin-center.types';
 import logger from '@/utils/errorLogger';
@@ -110,6 +111,11 @@ const Overview: React.FC = () => {
           themeMode={themeMode}
           organization={organization}
           t={t}
+          refetch={getOrganizationDetails}
+        />
+
+        <OrganizationCalculationMethod
+          organization={organization}
           refetch={getOrganizationDetails}
         />
 

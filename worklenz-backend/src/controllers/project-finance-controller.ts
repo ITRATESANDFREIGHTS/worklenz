@@ -52,11 +52,18 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
     const groupBy = req.query.group_by || "status";
     const billableFilter = req.query.billable_filter || "billable";
 
-    // Get project information including currency and calculation method
+    // Get project information including currency and organization calculation method
     const projectQuery = `
-      SELECT id, name, currency, calculation_method, hours_per_day
-      FROM projects 
-      WHERE id = $1
+      SELECT 
+        p.id, 
+        p.name, 
+        p.currency,
+        o.calculation_method,
+        o.hours_per_day
+      FROM projects p
+      JOIN teams t ON p.team_id = t.id
+      JOIN organizations o ON t.organization_id = o.id
+      WHERE p.id = $1
     `;
     const projectResult = await db.query(projectQuery, [projectId]);
     
@@ -146,9 +153,9 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       task_costs AS (
         SELECT 
           tt.*,
-          -- Calculate estimated cost based on project calculation method
+          -- Calculate estimated cost based on organization calculation method
           CASE 
-            WHEN (SELECT calculation_method FROM projects WHERE id = tt.project_id) = 'man_days' THEN
+            WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = tt.project_id) = 'man_days' THEN
               -- Man days calculation: use estimated_man_days * man_day_rate
               COALESCE((
                 SELECT SUM(tt.estimated_man_days * COALESCE(fprr.man_day_rate, 0))
@@ -252,17 +259,17 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         ((at.actual_cost_from_logs + at.fixed_cost) - (at.estimated_cost + at.fixed_cost)) as variance,
         -- Add effort variance for man days calculation
         CASE 
-          WHEN (SELECT calculation_method FROM projects WHERE id = $1) = 'man_days' THEN
+          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
             -- Effort variance in man days: actual man days - estimated man days
-            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT hours_per_day FROM projects WHERE id = $1), 8.0)) - 
+            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)) - 
             COALESCE(at.estimated_man_days, 0)
           ELSE 
             NULL -- No effort variance for hourly projects
         END as effort_variance_man_days,
         -- Add actual man days for man days calculation
         CASE 
-          WHEN (SELECT calculation_method FROM projects WHERE id = $1) = 'man_days' THEN
-            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT hours_per_day FROM projects WHERE id = $1), 8.0)
+          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
+            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)
           ELSE 
             NULL
         END as actual_man_days
@@ -1084,17 +1091,17 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         ((at.actual_cost_from_logs + at.fixed_cost) - (at.estimated_cost + at.fixed_cost)) as variance,
         -- Add effort variance for man days calculation
         CASE 
-          WHEN (SELECT calculation_method FROM projects WHERE id = $1) = 'man_days' THEN
+          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
             -- Effort variance in man days: actual man days - estimated man days
-            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT hours_per_day FROM projects WHERE id = $1), 8.0)) - 
+            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)) - 
             COALESCE(at.estimated_man_days, 0)
           ELSE 
             NULL -- No effort variance for hourly projects
         END as effort_variance_man_days,
         -- Add actual man days for man days calculation
         CASE 
-          WHEN (SELECT calculation_method FROM projects WHERE id = $1) = 'man_days' THEN
-            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT hours_per_day FROM projects WHERE id = $1), 8.0)
+          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
+            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)
           ELSE 
             NULL
         END as actual_man_days

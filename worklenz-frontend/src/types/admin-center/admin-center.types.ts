@@ -6,6 +6,8 @@ export interface IOrganization {
   email?: string;
   contact_number?: string;
   contact_number_secondary?: string;
+  calculation_method?: 'hourly' | 'man_days';
+  hours_per_day?: number;
 }
 
 export interface IOrganizationAdmin {

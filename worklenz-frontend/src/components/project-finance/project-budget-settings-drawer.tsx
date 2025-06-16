@@ -29,8 +29,9 @@ import {
 } from '@ant-design/icons';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import { updateProjectCalculationMethodAsync } from '@/features/projects/finance/project-finance.slice';
-import { projectsApiService } from '@/api/projects/projects.api.service';
+import { updateProjectFinanceCurrency } from '@/features/projects/finance/project-finance.slice';
+import { updateProjectCurrency } from '@/features/project/project.slice';
+import { projectFinanceApiService } from '@/api/project-finance-ratecard/project-finance.api.service';
 import { CURRENCY_OPTIONS } from '@/shared/constants/currencies';
 
 const { Option } = Select;
@@ -54,15 +55,13 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get project data from Redux
+  const { financeProject } = useAppSelector((state) => state.projectFinances);
   const { project } = useAppSelector((state) => state.projectReducer);
-  const { project: financeProject } = useAppSelector((state) => state.projectFinances);
 
   // Form initial values
   const initialValues = {
     budget: project?.budget || 0,
-    currency: project?.currency || 'usd',
-    calculation_method: financeProject?.calculation_method || 'hourly',
-    hours_per_day: financeProject?.hours_per_day || 8,
+    currency: financeProject?.currency || 'USD',
   };
 
   // Set form values when drawer opens
@@ -84,32 +83,24 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
       setLoading(true);
       const values = await form.validateFields();
 
-      // Update calculation method if changed
-      if (values.calculation_method !== financeProject?.calculation_method || 
-          values.hours_per_day !== financeProject?.hours_per_day) {
-        await dispatch(updateProjectCalculationMethodAsync({
-          projectId,
-          calculationMethod: values.calculation_method,
-          hoursPerDay: values.hours_per_day
-        })).unwrap();
+      // Update budget if changed
+      if (values.budget !== project?.budget) {
+        await projectFinanceApiService.updateProjectBudget(projectId, values.budget);
       }
 
-      // Update project budget and other settings
-      const projectUpdateData = {
-        id: projectId,
-        budget: values.budget,
-        currency: values.currency,
-      };
+      // Update currency if changed
+      if (values.currency !== financeProject?.currency) {
+        await projectFinanceApiService.updateProjectCurrency(projectId, values.currency);
+        dispatch(updateProjectCurrency(values.currency));
+        dispatch(updateProjectFinanceCurrency(values.currency));
+      }
 
-      // Update project via API
-      await projectsApiService.updateProject(projectUpdateData);
-
-      message.success('Budget settings updated successfully');
+      message.success('Project settings updated successfully');
       setHasChanges(false);
       onClose();
     } catch (error) {
-      console.error('Failed to update budget settings:', error);
-      message.error('Failed to update budget settings');
+      console.error('Failed to update project settings:', error);
+      message.error('Failed to update project settings');
     } finally {
       setLoading(false);
     }
@@ -207,7 +198,7 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
           </Row>
         </Card>
 
-        {/* Calculation Method */}
+        {/* Calculation Method - Organization Wide Setting */}
         <Card 
           title={
             <Space>
@@ -218,80 +209,34 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
           size="small"
           style={{ marginBottom: 16 }}
         >
-          <Form.Item
-            name="calculation_method"
-            label="Calculation Method"
-          >
-            <Select placeholder="Select calculation method">
-              <Option value="hourly">
-                <Space>
-                  <ClockCircleOutlined />
-                  <span>Hourly Rates</span>
-                </Space>
-              </Option>
-              <Option value="man_days">
-                <Space>
-                  <CalculatorOutlined />
-                  <span>Man Days</span>
-                </Space>
-              </Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) =>
-              prevValues.calculation_method !== currentValues.calculation_method
-            }
-          >
-            {({ getFieldValue }) =>
-              getFieldValue('calculation_method') === 'man_days' ? (
-                <Form.Item
-                  name="hours_per_day"
-                  label={
-                    <Space>
-                      <span>Working Hours per Day</span>
-                      <Tooltip title="Number of working hours in a day for man-day calculations">
-                        <InfoCircleOutlined style={{ color: '#666' }} />
-                      </Tooltip>
-                    </Space>
-                  }
-                >
-                  <InputNumber
-                    min={1}
-                    max={24}
-                    step={0.5}
-                    precision={1}
-                    style={{ width: '100%' }}
-                    addonAfter="hours"
-                  />
-                </Form.Item>
-              ) : null
-            }
-          </Form.Item>
-
-          <Alert
-            message={
-              <Form.Item
-                noStyle
-                shouldUpdate={(prevValues, currentValues) =>
-                  prevValues.calculation_method !== currentValues.calculation_method
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <Text strong>Current Method: </Text>
+              <Text>
+                {financeProject?.calculation_method === 'man_days' 
+                  ? `Man Days (${financeProject?.hours_per_day || 8}h/day)` 
+                  : 'Hourly Rates'
                 }
-              >
-                {({ getFieldValue }) =>
-                  getFieldValue('calculation_method') === 'hourly'
-                    ? 'Costs will be calculated using estimated hours × hourly rates'
-                    : `Costs will be calculated using estimated man days × daily rates (${getFieldValue('hours_per_day') || 8}h/day)`
-                }
-              </Form.Item>
-            }
-            type="info"
-            showIcon
-            style={{ marginTop: 8 }}
-          />
+              </Text>
+            </div>
+            
+            <Alert
+              message="Organization-wide Setting"
+              description={
+                <Space direction="vertical" size="small">
+                  <Text>
+                    The calculation method is now configured at the organization level and applies to all projects.
+                  </Text>
+                  <Text>
+                    To change this setting, please visit the <strong>Admin Center → Overview</strong> page.
+                  </Text>
+                </Space>
+              }
+              type="info"
+              showIcon
+            />
+          </Space>
         </Card>
-
-
 
         {/* Information Section */}
         <Card 

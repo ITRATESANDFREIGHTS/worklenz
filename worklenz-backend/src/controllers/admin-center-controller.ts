@@ -42,16 +42,11 @@ export default class AdminCenterController extends WorklenzControllerBase {
   // organization
   @HandleExceptions()
   public static async getOrganizationDetails(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
-    // const q = `SELECT organization_name                                      AS name,
-    //                   contact_number,
-    //                   contact_number_secondary,
-    //                   (SELECT email FROM users WHERE id = users_data.user_id),
-    //                   (SELECT name FROM users WHERE id = users_data.user_id) AS owner_name
-    //            FROM users_data
-    //            WHERE user_id = $1;`;
     const q = `SELECT organization_name                                      AS name,
                       contact_number,
                       contact_number_secondary,
+                      calculation_method,
+                      hours_per_day,
                       (SELECT email FROM users WHERE id = organizations.user_id),
                       (SELECT name FROM users WHERE id = organizations.user_id) AS owner_name
                   FROM organizations
@@ -133,6 +128,41 @@ export default class AdminCenterController extends WorklenzControllerBase {
                WHERE user_id = $2;`;
     const result = await db.query(q, [contact_number, req.user?.owner_id]);
     return res.status(200).send(new ServerResponse(true, result.rows));
+  }
+
+  @HandleExceptions()
+  public static async updateOrganizationCalculationMethod(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    const { calculation_method, hours_per_day } = req.body;
+
+    // Validate calculation method
+    if (!["hourly", "man_days"].includes(calculation_method)) {
+      return res.status(400).send(new ServerResponse(false, null, "Invalid calculation method. Must be \"hourly\" or \"man_days\""));
+    }
+
+    // Validate hours per day
+    if (hours_per_day && (typeof hours_per_day !== "number" || hours_per_day <= 0 || hours_per_day > 24)) {
+      return res.status(400).send(new ServerResponse(false, null, "Invalid hours per day. Must be a positive number between 0 and 24"));
+    }
+
+    const updateQuery = `
+      UPDATE organizations 
+      SET calculation_method = $1, 
+          hours_per_day = COALESCE($2, hours_per_day),
+          updated_at = NOW()
+      WHERE user_id = $3
+      RETURNING id, organization_name, calculation_method, hours_per_day;
+    `;
+
+    const result = await db.query(updateQuery, [calculation_method, hours_per_day, req.user?.owner_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).send(new ServerResponse(false, null, "Organization not found"));
+    }
+
+    return res.status(200).send(new ServerResponse(true, {
+      organization: result.rows[0],
+      message: "Organization calculation method updated successfully"
+    }));
   }
 
   @HandleExceptions()
