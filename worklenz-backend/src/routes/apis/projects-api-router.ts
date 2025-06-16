@@ -30,6 +30,7 @@ projectsApiRouter.get("/archive/:id", idParamValidator, safeControllerFunction(P
 projectsApiRouter.get("/:id", idParamValidator, safeControllerFunction(ProjectsController.getById));
 projectsApiRouter.put("/update-pinned-view", projectMemberValidator, safeControllerFunction(ProjectsController.updatePinnedView));
 projectsApiRouter.put("/:id", projectManagerValidator, idParamValidator, projectsBodyValidator, safeControllerFunction(ProjectsController.update));
+projectsApiRouter.patch("/:id", projectManagerValidator, idParamValidator, projectsBodyValidator, safeControllerFunction(ProjectsController.update));
 projectsApiRouter.delete("/:id", teamOwnerOrAdminValidator, idParamValidator, safeControllerFunction(ProjectsController.deleteById));
 projectsApiRouter.get("/archive-all/:id", teamOwnerOrAdminValidator, idParamValidator, safeControllerFunction(ProjectsController.toggleArchiveAll));
 
