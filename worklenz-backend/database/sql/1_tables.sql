@@ -17,6 +17,9 @@ CREATE TYPE LANGUAGE_TYPE AS ENUM ('en', 'es', 'pt');
 -- Add progress mode type for tasks progress tracking
 CREATE TYPE PROGRESS_MODE_TYPE AS ENUM ('manual', 'weighted', 'time', 'default');
 
+-- Add calculation method type for finance calculations
+CREATE TYPE calculation_method_type AS ENUM ('hourly', 'man_days');
+
 -- START: Users
 CREATE SEQUENCE IF NOT EXISTS users_user_no_seq START 1;
 
@@ -784,10 +787,19 @@ CREATE TABLE IF NOT EXISTS projects (
     use_manual_progress    BOOLEAN                  DEFAULT FALSE,
     use_weighted_progress  BOOLEAN                  DEFAULT FALSE,
     use_time_progress      BOOLEAN                  DEFAULT FALSE,
-    currency               VARCHAR(3)               DEFAULT 'USD'
+    currency               VARCHAR(3)               DEFAULT 'USD',
+    budget                 NUMERIC(15,2)            DEFAULT 0                  NOT NULL CHECK (budget >= 0),
+    calculation_method     calculation_method_type  DEFAULT 'hourly'           NOT NULL,
+  
 );
 
 COMMENT ON COLUMN projects.currency IS 'Project-specific currency code (e.g., USD, EUR, GBP, JPY, etc.)';
+
+COMMENT ON COLUMN projects.budget IS 'Manual project budget that overrides calculated budget from tasks when set';
+
+COMMENT ON COLUMN projects.calculation_method IS 'Determines whether project uses hourly rates or man days for cost calculations';
+
+COMMENT ON COLUMN projects.hours_per_day IS 'Number of working hours per day for man day calculations (also used for project progress tracking)';
 
 ALTER TABLE projects
     ADD CONSTRAINT projects_pk
@@ -1425,10 +1437,13 @@ CREATE TABLE IF NOT EXISTS tasks (
     progress_value     INTEGER                  DEFAULT NULL,
     progress_mode      PROGRESS_MODE_TYPE      DEFAULT 'default',
     weight             INTEGER                  DEFAULT NULL,
-    fixed_cost         DECIMAL(10, 2)           DEFAULT 0 CHECK (fixed_cost >= 0)
+    fixed_cost         DECIMAL(10, 2)           DEFAULT 0 CHECK (fixed_cost >= 0),
+    estimated_man_days NUMERIC(8, 2)           DEFAULT 0 CHECK (estimated_man_days >= 0)
 );
 
 COMMENT ON COLUMN tasks.fixed_cost IS 'Fixed cost for the task in addition to hourly rate calculations';
+
+COMMENT ON COLUMN tasks.estimated_man_days IS 'Estimated effort in man days for this task';
 
 ALTER TABLE tasks
     ADD CONSTRAINT tasks_pk
@@ -2311,6 +2326,7 @@ CREATE TABLE IF NOT EXISTS finance_project_rate_card_roles (
     project_id UUID                     NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
     job_title_id    UUID                     NOT NULL REFERENCES job_titles (id) ON DELETE CASCADE,
     rate       DECIMAL(10, 2)           NOT NULL CHECK (rate >= 0),
+    man_day_rate DECIMAL(10, 2)         DEFAULT 0 CHECK (man_day_rate >= 0),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_project_role UNIQUE (project_id, job_title_id)
@@ -2320,6 +2336,7 @@ CREATE TABLE IF NOT EXISTS finance_rate_card_roles (
     rate_card_id UUID                     NOT NULL REFERENCES finance_rate_cards (id) ON DELETE CASCADE,
     job_title_id      UUID                     REFERENCES job_titles(id) ON DELETE SET NULL,
     rate         DECIMAL(10, 2)           NOT NULL CHECK (rate >= 0),
+    man_day_rate DECIMAL(10, 2)           DEFAULT 0 CHECK (man_day_rate >= 0),
     created_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -2329,3 +2346,7 @@ ALTER TABLE project_members
 
 ALTER TABLE projects
     ADD COLUMN IF NOT EXISTS rate_card UUID REFERENCES finance_rate_cards(id) ON DELETE SET NULL;
+
+-- Comments for finance tables
+COMMENT ON COLUMN finance_project_rate_card_roles.man_day_rate IS 'Rate per man day for this role in the project';
+COMMENT ON COLUMN finance_rate_card_roles.man_day_rate IS 'Rate per man day for this role in the rate card';

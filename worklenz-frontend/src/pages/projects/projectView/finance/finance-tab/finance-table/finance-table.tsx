@@ -8,7 +8,8 @@ import {
 } from '@ant-design/icons';
 import { themeWiseColor } from '@/utils/themeWiseColor';
 import { colors } from '@/styles/colors';
-import { financeTableColumns, FinanceTableColumnKeys } from '@/lib/project/project-view-finance-table-columns';
+import { financeTableColumns, FinanceTableColumnKeys, getFinanceTableColumns } from '@/lib/project/project-view-finance-table-columns';
+import { formatManDays } from '@/utils/man-days-utils';
 import Avatars from '@/components/avatars/avatars';
 import { IProjectFinanceGroup, IProjectFinanceTask } from '@/types/project/project-finance.types';
 import { 
@@ -31,12 +32,14 @@ type FinanceTableProps = {
   table: IProjectFinanceGroup;
   loading: boolean;
   onTaskClick: (task: any) => void;
+  columns?: any[];
 };
 
 const FinanceTable = ({
   table,
   loading,
   onTaskClick,
+  columns,
 }: FinanceTableProps) => {
   const [isCollapse, setIsCollapse] = useState<boolean>(false);
   const [isScrolling, setIsScrolling] = useState<boolean>(false);
@@ -49,7 +52,12 @@ const FinanceTable = ({
   
   // Get the latest task groups from Redux store
   const taskGroups = useAppSelector((state) => state.projectFinances.taskGroups);
-  const { activeGroup, billableFilter } = useAppSelector((state) => state.projectFinances);
+  const { activeGroup, billableFilter, project: financeProject } = useAppSelector((state) => state.projectFinances);
+  
+  // Get calculation method and dynamic columns
+  const calculationMethod = financeProject?.calculation_method || 'hourly';
+  const hoursPerDay = financeProject?.hours_per_day || 8;
+  const activeColumns = useMemo(() => columns || getFinanceTableColumns(calculationMethod), [columns, calculationMethod]);
   
   // Auth and permissions
   const auth = useAuthService();
@@ -115,6 +123,8 @@ const FinanceTable = ({
     switch (columnKey) {
       case FinanceTableColumnKeys.HOURS:
         return <Typography.Text>{formattedTotals.hours}</Typography.Text>;
+      case FinanceTableColumnKeys.MAN_DAYS:
+        return <Typography.Text>{formatManDays(formattedTotals.man_days || 0)}</Typography.Text>;
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return <Typography.Text>{formattedTotals.total_time_logged}</Typography.Text>;
       case FinanceTableColumnKeys.ESTIMATED_COST:
@@ -309,7 +319,7 @@ const FinanceTable = ({
         onMouseEnter={() => setHoveredTaskId(task.id)}
         onMouseLeave={() => setHoveredTaskId(null)}
       >
-        {financeTableColumns.map((col) => (
+        {activeColumns.map((col) => (
           <td
             key={`${task.id}-${col.key}`}
             style={{
@@ -431,6 +441,8 @@ const FinanceTable = ({
         );
       case FinanceTableColumnKeys.HOURS:
         return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{task.estimated_hours}</Typography.Text>;
+      case FinanceTableColumnKeys.MAN_DAYS:
+        return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{formatManDays(task.estimated_man_days || 0)}</Typography.Text>;
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{task.total_time_logged}</Typography.Text>;
       case FinanceTableColumnKeys.ESTIMATED_COST:
@@ -552,6 +564,7 @@ const FinanceTable = ({
     const calculateTaskTotalsRecursive = (taskList: IProjectFinanceTask[]): any => {
       let totals = {
         hours: 0,
+        man_days: 0,
         total_time_logged: 0,
         estimated_cost: 0,
         actual_cost_from_logs: 0,
@@ -566,6 +579,7 @@ const FinanceTable = ({
           // Parent task with loaded subtasks - only use subtasks values (no parent's own values)
           const subtaskTotals = calculateTaskTotalsRecursive(task.sub_tasks);
           totals.hours += subtaskTotals.hours;
+          totals.man_days += subtaskTotals.man_days;
           totals.total_time_logged += subtaskTotals.total_time_logged;
           totals.estimated_cost += subtaskTotals.estimated_cost;
           totals.actual_cost_from_logs += subtaskTotals.actual_cost_from_logs;
@@ -578,6 +592,7 @@ const FinanceTable = ({
           const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           totals.hours += task.estimated_seconds || 0;
+          totals.man_days += task.estimated_man_days || 0;
           totals.total_time_logged += task.total_time_logged_seconds || 0;
           totals.estimated_cost += task.estimated_cost || 0;
           totals.actual_cost_from_logs += task.actual_cost_from_logs || 0;
@@ -597,6 +612,7 @@ const FinanceTable = ({
   // Format the totals for display
   const formattedTotals = useMemo(() => ({
     hours: formatSecondsToTimeString(totals.hours),
+    man_days: totals.man_days,
     total_time_logged: formatSecondsToTimeString(totals.total_time_logged),
     estimated_cost: totals.estimated_cost,
     actual_cost_from_logs: totals.actual_cost_from_logs,
@@ -609,7 +625,7 @@ const FinanceTable = ({
   if (loading) {
     return (
       <tr>
-        <td colSpan={financeTableColumns.length}>
+        <td colSpan={activeColumns.length}>
           <Skeleton active />
         </td>
       </tr>
@@ -631,7 +647,7 @@ const FinanceTable = ({
         }}
         className={`group ${themeMode === 'dark' ? 'dark' : ''}`}
       >
-        {financeTableColumns.map(
+        {activeColumns.map(
           (col, index) => (
             <td
               key={`header-${col.key}`}

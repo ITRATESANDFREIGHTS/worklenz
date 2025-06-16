@@ -72,6 +72,54 @@ export const projectFinanceApiService = {
         return response.data;
       },
 
+    updateProjectBudget: async (
+        projectId: string,
+        budget: number
+      ): Promise<IServerResponse<any>> => {
+        const response = await apiClient.put<IServerResponse<any>>(
+          `${rootUrl}/project/${projectId}/budget`,
+          { budget }
+        );
+        return response.data;
+      },
+
+    updateProjectCalculationMethod: async (
+        projectId: string,
+        calculationMethod: 'hourly' | 'man_days',
+        hoursPerDay?: number
+      ): Promise<IServerResponse<any>> => {
+        const response = await apiClient.put<IServerResponse<any>>(
+          `${rootUrl}/project/${projectId}/calculation-method`,
+          { 
+            calculation_method: calculationMethod,
+            hours_per_day: hoursPerDay
+          }
+        );
+        return response.data;
+      },
+
+    updateTaskEstimatedManDays: async (
+        taskId: string,
+        estimatedManDays: number
+      ): Promise<IServerResponse<any>> => {
+        const response = await apiClient.put<IServerResponse<any>>(
+          `${rootUrl}/task/${taskId}/estimated-man-days`,
+          { estimated_man_days: estimatedManDays }
+        );
+        return response.data;
+      },
+
+    updateRateCardManDayRate: async (
+        rateCardRoleId: string,
+        manDayRate: number
+      ): Promise<IServerResponse<any>> => {
+        const response = await apiClient.put<IServerResponse<any>>(
+          `${rootUrl}/rate-card-role/${rateCardRoleId}/man-day-rate`,
+          { man_day_rate: manDayRate }
+        );
+        return response.data;
+      },
+
     exportFinanceData: async (
         projectId: string,
         groupBy: 'status' | 'priority' | 'phases' = 'status',

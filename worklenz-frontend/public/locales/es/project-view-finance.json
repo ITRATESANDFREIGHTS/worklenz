@@ -12,10 +12,14 @@
   "billableOnlyText": "Solo Facturable",
   "nonBillableOnlyText": "Solo No Facturable",
   "allTasksText": "Todas las Tareas",
-  
+  "projectBudgetOverviewText": "Resumen del Presupuesto del Proyecto",
+
   "taskColumn": "Tarea",
   "membersColumn": "Miembros",
   "hoursColumn": "Horas Estimadas",
+  "manDaysColumn": "Días Hombre Estimados", 
+  "actualManDaysColumn": "Días Hombre Reales",
+  "effortVarianceColumn": "Varianza de Esfuerzo",
   "totalTimeLoggedColumn": "Tiempo Total Registrado",
   "costColumn": "Costo Real",
   "estimatedCostColumn": "Costo Estimado",
@@ -32,6 +36,11 @@
   
   "jobTitleColumn": "Título del Trabajo",
   "ratePerHourColumn": "Tarifa por hora",
+  "ratePerManDayColumn": "Tarifa por día hombre",
+  "calculationMethodText": "Método de Cálculo",
+  "hourlyRatesText": "Tarifas por Hora",
+  "manDaysText": "Días Hombre",
+  "hoursPerDayText": "Horas por Día",
   "ratecardPluralText": "Tarifas",
   "labourHoursColumn": "Horas de Trabajo",
   "actions": "Acciones",
@@ -43,14 +52,72 @@
   "alreadyImportedRateCardMessage": "Ya se ha importado una tarifa. Borra todas las tarifas importadas para agregar una nueva.",
 
   "budgetOverviewTooltips": {
-    "totalBudget": "El presupuesto total planificado para el proyecto, incluyendo costos estimados y costos fijos",
-    "totalActualCost": "El monto total realmente gastado en el proyecto, incluyendo costos basados en tiempo y costos fijos",
-    "variance": "La diferencia entre el costo real y el presupuesto total. Valores positivos indican sobre-presupuesto, valores negativos indican bajo-presupuesto",
-    "utilization": "Porcentaje del presupuesto consumido. Calculado como (Costo Real Total ÷ Presupuesto Total) × 100%",
-    "estimated": "El costo estimado basado en horas planificadas y tarifas por hora para todas las tareas",
-    "fixedCost": "Costos fijos adicionales agregados a las tareas que no se basan en el seguimiento de tiempo",
-    "actualCost": "Costos calculados a partir del tiempo real registrado por los miembros del equipo basado en sus tarifas por hora",
-    "remaining": "El presupuesto restante disponible. Valores positivos indican presupuesto restante, valores negativos indican sobre-presupuesto"
-  }
+    "manualBudget": "Monto del presupuesto manual del proyecto establecido por el gerente de proyecto",
+    "totalActualCost": "Costo real total incluyendo costos fijos",
+    "variance": "Diferencia entre el presupuesto manual y el costo real",
+    "utilization": "Porcentaje del presupuesto manual utilizado",
+    "estimatedHours": "Total de horas estimadas de todas las tareas",
+    "fixedCosts": "Total de costos fijos de todas las tareas",
+    "timeBasedCost": "Costo real del seguimiento de tiempo (excluyendo costos fijos)",
+    "remainingBudget": "Monto del presupuesto restante"
+  },
+
+  "budgetModal": {
+    "title": "Editar Presupuesto del Proyecto",
+    "description": "Establece un presupuesto manual para este proyecto. Este presupuesto se utilizará para todos los cálculos financieros y debe incluir tanto los costos basados en tiempo como los costos fijos.",
+    "placeholder": "Ingresa el monto del presupuesto",
+    "saveButton": "Guardar",
+    "cancelButton": "Cancelar"
+  },
+
+      "budgetStatistics": {
+      "manualBudget": "Presupuesto Manual",
+      "totalActualCost": "Costo Real Total",
+      "variance": "Varianza",
+      "budgetUtilization": "Utilización del Presupuesto",
+      "estimatedHours": "Horas Estimadas",
+      "fixedCosts": "Costos Fijos",
+      "timeBasedCost": "Costo Basado en Tiempo",
+      "remainingBudget": "Presupuesto Restante",
+      "noManualBudgetSet": "(Sin Presupuesto Manual Establecido)"
+    },
+
+    "budgetSettingsDrawer": {
+      "title": "Configuración del Presupuesto del Proyecto",
+      "budgetConfiguration": "Configuración del Presupuesto",
+      "projectBudget": "Presupuesto del Proyecto",
+      "projectBudgetTooltip": "Presupuesto total asignado para este proyecto",
+      "currency": "Moneda",
+      "costCalculationMethod": "Método de Cálculo de Costos",
+      "calculationMethod": "Método de Cálculo",
+      "workingHoursPerDay": "Horas de Trabajo por Día",
+      "workingHoursPerDayTooltip": "Número de horas de trabajo en un día para cálculos de días-hombre",
+      "hourlyCalculationInfo": "Los costos se calcularán usando horas estimadas × tarifas por hora",
+      "manDaysCalculationInfo": "Los costos se calcularán usando días hombre estimados × tarifas diarias",
+      "importantNotes": "Notas Importantes",
+      "calculationMethodChangeNote": "• Cambiar el método de cálculo afectará cómo se calculan los costos para todas las tareas en este proyecto",
+      "immediateEffectNote": "• Los cambios surten efecto inmediatamente y recalcularán todos los totales del proyecto",
+      "projectWideNote": "• La configuración del presupuesto se aplica a todo el proyecto y todas sus tareas",
+      "cancel": "Cancelar",
+      "saveChanges": "Guardar Cambios",
+      "budgetSettingsUpdated": "Configuración del presupuesto actualizada exitosamente",
+      "budgetSettingsUpdateFailed": "Error al actualizar la configuración del presupuesto"
+    },
+
+    "columnTooltips": {
+      "hours": "Total de horas estimadas para todas las tareas. Calculado a partir de las estimaciones de tiempo de las tareas.",
+      "manDays": "Total de días-hombre estimados para todas las tareas. Basado en {{hoursPerDay}} horas por día laboral.",
+      "actualManDays": "Días-hombre reales gastados basados en el tiempo registrado. Calculado como: Tiempo Total Registrado ÷ {{hoursPerDay}} horas por día.",
+      "effortVariance": "Diferencia entre días-hombre estimados y reales. Valores positivos indican sobre-estimación, valores negativos indican sub-estimación.",
+      "totalTimeLogged": "Tiempo total realmente registrado por los miembros del equipo en todas las tareas.",
+      "estimatedCostHourly": "Costo estimado calculado como: Horas Estimadas × Tarifas por Hora para los miembros del equipo asignados.",
+      "estimatedCostManDays": "Costo estimado calculado como: Días-Hombre Estimados × Tarifas Diarias para los miembros del equipo asignados.",
+      "actualCost": "Costo real basado en el tiempo registrado. Calculado como: Tiempo Registrado × Tarifas por Hora para los miembros del equipo.",
+      "fixedCost": "Costos fijos que no dependen del tiempo gastado. Agregados manualmente por tarea.",
+      "totalBudgetHourly": "Costo total presupuestado incluyendo costo estimado (Horas × Tarifas por Hora) + Costos Fijos.",
+      "totalBudgetManDays": "Costo total presupuestado incluyendo costo estimado (Días-Hombre × Tarifas Diarias) + Costos Fijos.",
+      "totalActual": "Costo total real incluyendo costo basado en tiempo + Costos Fijos.",
+      "variance": "Varianza de costo: Total Real - Total Presupuestado. Valores positivos indican sobre-presupuesto, valores negativos indican bajo-presupuesto."
+    }
 }
   

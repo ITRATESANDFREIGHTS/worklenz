@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Flex, Typography, Empty } from 'antd';
+import { Flex, Typography, Empty, Tooltip } from 'antd';
 import { themeWiseColor } from '@/utils/themeWiseColor';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { openFinanceDrawer } from '@/features/finance/finance-slice';
-import { financeTableColumns, FinanceTableColumnKeys } from '@/lib/project/project-view-finance-table-columns';
+import { financeTableColumns, FinanceTableColumnKeys, getFinanceTableColumns } from '@/lib/project/project-view-finance-table-columns';
+import { secondsToManDays, formatManDays } from '@/utils/man-days-utils';
 import FinanceTable from './finance-table';
 import FinanceDrawer from '@/features/finance/finance-drawer/finance-drawer';
 import { IProjectFinanceGroup, IProjectFinanceTask } from '@/types/project/project-finance.types';
@@ -61,6 +62,48 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
   const themeMode = useAppSelector(state => state.themeReducer.mode);
   const currency = useAppSelector(state => state.projectFinances.project?.currency || "").toUpperCase();
   const taskGroups = useAppSelector(state => state.projectFinances.taskGroups);
+  const financeProject = useAppSelector(state => state.projectFinances.project);
+  
+  // Get calculation method and hours per day from project
+  const calculationMethod = financeProject?.calculation_method || 'hourly';
+  const hoursPerDay = financeProject?.hours_per_day || 8;
+  
+  // Get dynamic columns based on calculation method
+  const activeColumns = useMemo(() => getFinanceTableColumns(calculationMethod), [calculationMethod]);
+
+  // Function to get tooltip text for column headers
+  const getColumnTooltip = (columnKey: FinanceTableColumnKeys): string => {
+    switch (columnKey) {
+      case FinanceTableColumnKeys.HOURS:
+        return t('columnTooltips.hours');
+      case FinanceTableColumnKeys.MAN_DAYS:
+        return t('columnTooltips.manDays', { hoursPerDay });
+      case FinanceTableColumnKeys.ACTUAL_MAN_DAYS:
+        return t('columnTooltips.actualManDays', { hoursPerDay });
+      case FinanceTableColumnKeys.EFFORT_VARIANCE:
+        return t('columnTooltips.effortVariance');
+      case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
+        return t('columnTooltips.totalTimeLogged');
+      case FinanceTableColumnKeys.ESTIMATED_COST:
+        return calculationMethod === 'man_days' 
+          ? t('columnTooltips.estimatedCostManDays')
+          : t('columnTooltips.estimatedCostHourly');
+      case FinanceTableColumnKeys.COST:
+        return t('columnTooltips.actualCost');
+      case FinanceTableColumnKeys.FIXED_COST:
+        return t('columnTooltips.fixedCost');
+      case FinanceTableColumnKeys.TOTAL_BUDGET:
+        return calculationMethod === 'man_days'
+          ? t('columnTooltips.totalBudgetManDays')
+          : t('columnTooltips.totalBudgetHourly');
+      case FinanceTableColumnKeys.TOTAL_ACTUAL:
+        return t('columnTooltips.totalActual');
+      case FinanceTableColumnKeys.VARIANCE:
+        return t('columnTooltips.variance');
+      default:
+        return '';
+    }
+  };
 
   // Use Redux store data for totals calculation to ensure reactivity
   const totals = useMemo(() => {
@@ -74,6 +117,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
           const subtaskTotals = calculateTaskTotalsRecursively(task.sub_tasks);
           return {
             hours: acc.hours + subtaskTotals.hours,
+            manDays: acc.manDays + subtaskTotals.manDays,
             cost: acc.cost + subtaskTotals.cost,
             fixedCost: acc.fixedCost + subtaskTotals.fixedCost,
             totalBudget: acc.totalBudget + subtaskTotals.totalBudget,
@@ -88,6 +132,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           return {
             hours: acc.hours + (task.estimated_seconds || 0),
+            manDays: acc.manDays + (task.estimated_man_days || 0),
             cost: acc.cost + (task.actual_cost_from_logs || 0),
             fixedCost: acc.fixedCost + (task.fixed_cost || 0),
             totalBudget: acc.totalBudget + leafTotalBudget,
@@ -99,6 +144,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         }
       }, {
         hours: 0,
+        manDays: 0,
         cost: 0,
         fixedCost: 0,
         totalBudget: 0,
@@ -113,6 +159,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       const groupTotals = calculateTaskTotalsRecursively(table.tasks);
       return {
         hours: acc.hours + groupTotals.hours,
+        manDays: acc.manDays + groupTotals.manDays,
         cost: acc.cost + groupTotals.cost,
         fixedCost: acc.fixedCost + groupTotals.fixedCost,
         totalBudget: acc.totalBudget + groupTotals.totalBudget,
@@ -123,6 +170,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       };
     }, {
       hours: 0,
+      manDays: 0,
       cost: 0,
       fixedCost: 0,
       totalBudget: 0,
@@ -141,6 +189,12 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         return (
           <Typography.Text style={{ fontSize: 18 }}>
             {formatSecondsToTimeString(totals.hours)}
+          </Typography.Text>
+        );
+      case FinanceTableColumnKeys.MAN_DAYS:
+        return (
+          <Typography.Text style={{ fontSize: 18 }}>
+            {formatManDays(totals.manDays)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.COST:
@@ -204,19 +258,21 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                 borderBlockEnd: `2px solid rgb(0 0 0 / 0.05)`,
               }}
             >
-              {financeTableColumns.map(col => (
+              {activeColumns.map(col => (
                 <td
                   key={col.key}
                   style={{
                     minWidth: col.width,
                     paddingInline: 16,
-                    textAlign: col.type === 'hours' || col.type === 'currency' ? 'center' : 'start',
+                    textAlign: col.type === 'hours' || col.type === 'currency' || col.type === 'man_days' ? 'center' : 'start',
                   }}
                   className={`${customColumnHeaderStyles(col.key)} before:constent relative before:absolute before:left-0 before:top-1/2 before:h-[36px] before:w-0.5 before:-translate-y-1/2 ${themeMode === 'dark' ? 'before:bg-white/10' : 'before:bg-black/5'}`}
                 >
-                  <Typography.Text>
-                    {t(`${col.name}`)} {col.type === 'currency' && `(${currency.toUpperCase()})`}
-                  </Typography.Text>
+                  <Tooltip title={getColumnTooltip(col.key)} placement="top">
+                    <Typography.Text style={{ cursor: 'help' }}>
+                      {t(`${col.name}`)} {col.type === 'currency' && `(${currency.toUpperCase()})`}
+                    </Typography.Text>
+                  </Tooltip>
                 </td>
               ))}
             </tr>
@@ -229,7 +285,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                   backgroundColor: themeWiseColor('#fbfbfb', '#141414', themeMode),
                 }}
               >
-                {financeTableColumns.map((col, index) => (
+                {activeColumns.map((col, index) => (
                   <td
                     key={col.key}
                     style={{
@@ -243,7 +299,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                     {col.key === FinanceTableColumnKeys.TASK ? (
                       <Typography.Text style={{ fontSize: 18 }}>{t('totalText')}</Typography.Text>
                     ) : col.key === FinanceTableColumnKeys.MEMBERS ? null : (
-                      (col.type === 'hours' || col.type === 'currency') && renderFinancialTableHeaderContent(col.key)
+                      (col.type === 'hours' || col.type === 'currency' || col.type === 'man_days') && renderFinancialTableHeaderContent(col.key)
                     )}
                   </td>
                 ))}
@@ -257,11 +313,12 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                   table={table}
                   onTaskClick={onTaskClick}
                   loading={loading}
+                  columns={activeColumns}
                 />
               ))
             ) : (
               <tr>
-                <td colSpan={financeTableColumns.length} style={{ padding: '40px 0', textAlign: 'center' }}>
+                <td colSpan={activeColumns.length} style={{ padding: '40px 0', textAlign: 'center' }}>
                   <Empty
                     description={
                       <Typography.Text type="secondary">

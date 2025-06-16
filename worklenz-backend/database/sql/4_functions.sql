@@ -636,13 +636,14 @@ BEGIN
     -- insert project
     INSERT INTO projects (name, key, notes, color_code, team_id, client_id, owner_id, status_id, health_id, start_date,
                           end_date,
-                          folder_id, category_id, estimated_working_days, estimated_man_days, hours_per_day)
+                          folder_id, category_id, estimated_working_days, estimated_man_days, hours_per_day, budget)
     VALUES (_project_name, (_body ->> 'key')::TEXT, (_body ->> 'notes')::TEXT, (_body ->> 'color_code')::TEXT, _team_id,
             _client_id,
             _user_id, (_body ->> 'status_id')::UUID, (_body ->> 'health_id')::UUID,
             (_body ->> 'start_date')::TIMESTAMPTZ,
             (_body ->> 'end_date')::TIMESTAMPTZ, (_body ->> 'folder_id')::UUID, (_body ->> 'category_id')::UUID,
-            (_body ->> 'working_days')::INTEGER, (_body ->> 'man_days')::INTEGER, (_body ->> 'hours_per_day')::INTEGER)
+            (_body ->> 'working_days')::INTEGER, (_body ->> 'man_days')::INTEGER, (_body ->> 'hours_per_day')::INTEGER,
+            COALESCE((_body ->> 'budget')::DECIMAL(15,2), 0))
     RETURNING id INTO _project_id;
 
     -- log record
@@ -5402,7 +5403,8 @@ BEGIN
         estimated_working_days = (_body ->> 'working_days')::INTEGER,
         estimated_man_days     = (_body ->> 'man_days')::INTEGER,
         hours_per_day          = (_body ->> 'hours_per_day')::INTEGER,
-        currency               = COALESCE(UPPER((_body ->> 'currency')::TEXT), currency)
+        currency               = COALESCE(UPPER((_body ->> 'currency')::TEXT), currency),
+        budget                 = COALESCE((_body ->> 'budget')::DECIMAL(15,2), budget)
     WHERE id = (_body ->> 'id')::UUID
       AND team_id = _team_id
     RETURNING id INTO _project_id;

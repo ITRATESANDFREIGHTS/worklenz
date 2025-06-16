@@ -1,8 +1,8 @@
-import { Button, ConfigProvider, Flex, Select, Typography, message, Alert, Card, Row, Col, Statistic, Tooltip } from 'antd';
+import { Button, ConfigProvider, Flex, Select, Typography, message, Alert, Card, Row, Col, Statistic, Tooltip, Input, Modal, Space } from 'antd';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CaretDownFilled, DownOutlined, CalculatorOutlined, ShrinkOutlined } from '@ant-design/icons';
+import { CaretDownFilled, DownOutlined, CalculatorOutlined, ShrinkOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { fetchProjectFinances, setActiveTab, setActiveGroup, updateProjectFinanceCurrency, fetchProjectFinancesSilent, setBillableFilter, resetAllTaskExpansions } from '@/features/projects/finance/project-finance.slice';
@@ -18,6 +18,8 @@ import { hasFinanceEditPermission } from '@/utils/finance-permissions';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '@/shared/constants/currencies';
 import { useSocket } from '@/socket/socketContext';
 import { SocketEvents } from '@/shared/socket-events';
+import CalculationMethodSelector from '@/components/project-finance/calculation-method-selector';
+import ProjectBudgetSettingsDrawer from '@/components/project-finance/project-budget-settings-drawer';
 
 const ProjectViewFinance = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -25,6 +27,10 @@ const ProjectViewFinance = () => {
   const { t } = useTranslation('project-view-finance');
   const [exporting, setExporting] = useState(false);
   const [updatingCurrency, setUpdatingCurrency] = useState(false);
+  const [updatingBudget, setUpdatingBudget] = useState(false);
+  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+  const [budgetValue, setBudgetValue] = useState<string>('');
+  const [budgetSettingsDrawerVisible, setBudgetSettingsDrawerVisible] = useState(false);
   const { socket } = useSocket();
   
   const { activeTab, activeGroup, billableFilter, loading, taskGroups, project: financeProject } = useAppSelector((state: RootState) => state.projectFinances);
@@ -45,24 +51,26 @@ const ProjectViewFinance = () => {
   // Calculate project budget statistics
   const budgetStatistics = useMemo(() => {
     if (!taskGroups || taskGroups.length === 0) {
+      const manualBudget = project?.budget || 0;
+      const hasManualBudget = !!(project?.budget && project.budget > 0);
       return {
-        totalEstimatedCost: 0,
+        totalEstimatedHours: 0,
         totalFixedCost: 0,
-        totalBudget: 0,
+        totalBudget: manualBudget,
         totalActualCost: 0,
-        totalVariance: 0,
-        budgetUtilization: 0
+        totalVariance: manualBudget,
+        budgetUtilization: 0,
+        manualBudget,
+        hasManualBudget
       };
     }
 
     // Optimized calculation that avoids double counting in nested hierarchies
     const calculateTaskTotalsFlat = (tasks: any[]): any => {
       let totals = {
-        totalEstimatedCost: 0,
+        totalEstimatedHours: 0,
         totalFixedCost: 0,
-        totalBudget: 0,
-        totalActualCost: 0,
-        totalVariance: 0
+        totalActualCost: 0
       };
 
       for (const task of tasks) {
@@ -70,18 +78,14 @@ const ProjectViewFinance = () => {
         // For leaf tasks, count their individual values
         if (task.sub_tasks && task.sub_tasks.length > 0) {
           // Parent task - use its aggregated values which already include subtask totals
-          totals.totalEstimatedCost += task.estimated_cost || 0;
+          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600; // Convert seconds to hours
           totals.totalFixedCost += task.fixed_cost || 0;
-          totals.totalBudget += task.total_budget || 0;
           totals.totalActualCost += task.total_actual || 0;
-          totals.totalVariance += task.variance || 0;
         } else {
           // Leaf task - use its individual values
-          totals.totalEstimatedCost += task.estimated_cost || 0;
+          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600; // Convert seconds to hours
           totals.totalFixedCost += task.fixed_cost || 0;
-          totals.totalBudget += task.total_budget || 0;
           totals.totalActualCost += task.total_actual || 0;
-          totals.totalVariance += task.variance || 0;
         }
       }
 
@@ -91,29 +95,39 @@ const ProjectViewFinance = () => {
     const totals = taskGroups.reduce((acc, group) => {
       const groupTotals = calculateTaskTotalsFlat(group.tasks);
       return {
-        totalEstimatedCost: acc.totalEstimatedCost + groupTotals.totalEstimatedCost,
+        totalEstimatedHours: acc.totalEstimatedHours + groupTotals.totalEstimatedHours,
         totalFixedCost: acc.totalFixedCost + groupTotals.totalFixedCost,
-        totalBudget: acc.totalBudget + groupTotals.totalBudget,
-        totalActualCost: acc.totalActualCost + groupTotals.totalActualCost,
-        totalVariance: acc.totalVariance + groupTotals.totalVariance
+        totalActualCost: acc.totalActualCost + groupTotals.totalActualCost
       };
     }, {
-      totalEstimatedCost: 0,
+      totalEstimatedHours: 0,
       totalFixedCost: 0,
-      totalBudget: 0,
-      totalActualCost: 0,
-      totalVariance: 0
+      totalActualCost: 0
     });
 
-    const budgetUtilization = totals.totalBudget > 0 
-      ? (totals.totalActualCost / totals.totalBudget) * 100 
+    // Use manual budget for all calculations
+    const manualBudget = project?.budget || 0;
+    const hasManualBudget = !!(project?.budget && project.budget > 0);
+    
+    // Manual budget should include fixed costs in calculations
+    const totalActualWithFixed = totals.totalActualCost + totals.totalFixedCost;
+    const totalVariance = manualBudget - totalActualWithFixed;
+
+    const budgetUtilization = manualBudget > 0 
+      ? (totalActualWithFixed / manualBudget) * 100 
       : 0;
 
     return {
-      ...totals,
-      budgetUtilization
+      totalEstimatedHours: totals.totalEstimatedHours,
+      totalFixedCost: totals.totalFixedCost,
+      totalBudget: manualBudget,
+      totalActualCost: totalActualWithFixed,
+      totalVariance,
+      budgetUtilization,
+      manualBudget,
+      hasManualBudget
     };
-  }, [taskGroups]);
+  }, [taskGroups, project?.budget]);
 
   // Silent refresh function for socket events
   const refreshFinanceData = useCallback((resetExpansions = false) => {
@@ -271,6 +285,45 @@ const ProjectViewFinance = () => {
     }
   };
 
+  const handleBudgetUpdate = async () => {
+    if (!projectId || !hasEditPermission) {
+      message.error('You do not have permission to change the project budget');
+      return;
+    }
+
+    const budget = parseFloat(budgetValue);
+    if (isNaN(budget) || budget < 0) {
+      message.error('Please enter a valid budget amount');
+      return;
+    }
+
+    try {
+      setUpdatingBudget(true);
+      await projectFinanceApiService.updateProjectBudget(projectId, budget);
+      
+      // Refresh the project data to get updated budget
+      refreshFinanceData();
+      
+      message.success('Project budget updated successfully');
+      setBudgetModalVisible(false);
+    } catch (error) {
+      console.error('Budget update failed:', error);
+      message.error('Failed to update project budget');
+    } finally {
+      setUpdatingBudget(false);
+    }
+  };
+
+  const handleBudgetEdit = () => {
+    setBudgetValue((project?.budget || 0).toString());
+    setBudgetModalVisible(true);
+  };
+
+  const handleBudgetCancel = () => {
+    setBudgetModalVisible(false);
+    setBudgetValue('');
+  };
+
   const groupDropdownMenuItems = [
     { key: 'status', value: 'status', label: t('statusText') },
     { key: 'priority', value: 'priority', label: t('priorityText') },
@@ -379,12 +432,32 @@ const ProjectViewFinance = () => {
             />
           )}
           
+
+
           {/* Budget Statistics */}
           <Card 
             title={
-              <Flex align="center" gap={8}>
-                <CalculatorOutlined />
-                <Typography.Text strong>Project Budget Overview</Typography.Text>
+              <Flex align="center" justify="space-between">
+                <Flex align="center" gap={8}>
+                  <CalculatorOutlined />
+                  <Typography.Text strong>{t('projectBudgetOverviewText')}</Typography.Text>
+                  {!budgetStatistics.hasManualBudget && (
+                    <Typography.Text type="warning" style={{ fontSize: '12px' }}>
+                      {t('budgetStatistics.noManualBudgetSet')}
+                    </Typography.Text>
+                  )}
+                </Flex>
+                {hasEditPermission && (
+                  <Tooltip title="Budget & Calculation Settings">
+                    <Button
+                      type="text"
+                      icon={<SettingOutlined />}
+                      size="small"
+                      onClick={() => setBudgetSettingsDrawerVisible(true)}
+                      style={{ color: '#666' }}
+                    />
+                  </Tooltip>
+                )}
               </Flex>
             }
             style={{ marginBottom: 16 }}
@@ -393,21 +466,43 @@ const ProjectViewFinance = () => {
           >
             <Row gutter={[12, 8]}>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Tooltip title={t('budgetOverviewTooltips.totalBudget')}>
-                  <Statistic
-                    title="Total Budget"
-                    value={budgetStatistics.totalBudget}
-                    precision={2}
-                    prefix={projectCurrency.toUpperCase()}
-                    valueStyle={{ color: '#1890ff', fontSize: '16px' }}
-                    style={{ textAlign: 'center' }}
-                  />
+                <Tooltip title={t('budgetOverviewTooltips.manualBudget')}>
+                  <div style={{ textAlign: 'center', position: 'relative' }}>
+                    <Statistic
+                      title={
+                        <Flex align="center" justify="center" gap={4}>
+                          <span>{t('budgetStatistics.manualBudget')}</span>
+                          {hasEditPermission && (
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={handleBudgetEdit}
+                              style={{ 
+                                padding: '0 4px',
+                                height: '16px',
+                                fontSize: '12px',
+                                color: '#666'
+                              }}
+                            />
+                          )}
+                        </Flex>
+                      }
+                      value={budgetStatistics.totalBudget}
+                      precision={2}
+                      prefix={projectCurrency.toUpperCase()}
+                      valueStyle={{ 
+                        color: budgetStatistics.hasManualBudget ? '#1890ff' : '#d9d9d9', 
+                        fontSize: '16px' 
+                      }}
+                    />
+                  </div>
                 </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
                 <Tooltip title={t('budgetOverviewTooltips.totalActualCost')}>
                   <Statistic
-                    title="Total Actual Cost"
+                    title={t('budgetStatistics.totalActualCost')}
                     value={budgetStatistics.totalActualCost}
                     precision={2}
                     prefix={projectCurrency.toUpperCase()}
@@ -419,14 +514,14 @@ const ProjectViewFinance = () => {
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
                 <Tooltip title={t('budgetOverviewTooltips.variance')}>
                   <Statistic
-                    title="Variance"
+                    title={t('budgetStatistics.variance')}
                     value={Math.abs(budgetStatistics.totalVariance)}
                     precision={2}
                     prefix={budgetStatistics.totalVariance >= 0 ? '+' : '-'}
                     suffix={` ${projectCurrency.toUpperCase()}`}
                     valueStyle={{ 
-                      color: budgetStatistics.totalVariance > 0 ? '#ff4d4f' : 
-                             budgetStatistics.totalVariance < 0 ? '#52c41a' : '#666666',
+                      color: budgetStatistics.totalVariance > 0 ? '#52c41a' : 
+                             budgetStatistics.totalVariance < 0 ? '#ff4d4f' : '#666666',
                       fontSize: '16px',
                       fontWeight: 'bold'
                     }}
@@ -437,7 +532,7 @@ const ProjectViewFinance = () => {
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
                 <Tooltip title={t('budgetOverviewTooltips.utilization')}>
                   <Statistic
-                    title="Utilization"
+                    title={t('budgetStatistics.budgetUtilization')}
                     value={budgetStatistics.budgetUtilization}
                     precision={1}
                     suffix="%"
@@ -451,21 +546,21 @@ const ProjectViewFinance = () => {
                 </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Tooltip title={t('budgetOverviewTooltips.estimated')}>
+                <Tooltip title={t('budgetOverviewTooltips.estimatedHours')}>
                   <Statistic
-                    title="Estimated"
-                    value={budgetStatistics.totalEstimatedCost}
-                    precision={2}
-                    prefix={projectCurrency.toUpperCase()}
+                    title={t('budgetStatistics.estimatedHours')}
+                    value={budgetStatistics.totalEstimatedHours}
+                    precision={1}
+                    suffix="h"
                     valueStyle={{ color: '#722ed1', fontSize: '16px' }}
                     style={{ textAlign: 'center' }}
                   />
                 </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Tooltip title={t('budgetOverviewTooltips.fixedCost')}>
+                <Tooltip title={t('budgetOverviewTooltips.fixedCosts')}>
                   <Statistic
-                    title="Fixed Cost"
+                    title={t('budgetStatistics.fixedCosts')}
                     value={budgetStatistics.totalFixedCost}
                     precision={2}
                     prefix={projectCurrency.toUpperCase()}
@@ -475,9 +570,9 @@ const ProjectViewFinance = () => {
                 </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Tooltip title={t('budgetOverviewTooltips.actualCost')}>
+                <Tooltip title={t('budgetOverviewTooltips.timeBasedCost')}>
                   <Statistic
-                    title="Actual Cost"
+                    title={t('budgetStatistics.timeBasedCost')}
                     value={budgetStatistics.totalActualCost - budgetStatistics.totalFixedCost}
                     precision={2}
                     prefix={projectCurrency.toUpperCase()}
@@ -487,15 +582,15 @@ const ProjectViewFinance = () => {
                 </Tooltip>
               </Col>
               <Col xs={12} sm={8} md={6} lg={4} xl={3}>
-                <Tooltip title={t('budgetOverviewTooltips.remaining')}>
+                <Tooltip title={t('budgetOverviewTooltips.remainingBudget')}>
                   <Statistic
-                    title="Remaining"
-                    value={Math.abs(budgetStatistics.totalBudget - budgetStatistics.totalActualCost)}
+                    title={t('budgetStatistics.remainingBudget')}
+                    value={Math.abs(budgetStatistics.totalVariance)}
                     precision={2}
-                    prefix={budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '+' : '-'}
+                    prefix={budgetStatistics.totalVariance >= 0 ? '+' : '-'}
                     suffix={` ${projectCurrency.toUpperCase()}`}
                     valueStyle={{ 
-                      color: budgetStatistics.totalBudget - budgetStatistics.totalActualCost >= 0 ? '#52c41a' : '#ff4d4f',
+                      color: budgetStatistics.totalVariance >= 0 ? '#52c41a' : '#ff4d4f',
                       fontSize: '16px',
                       fontWeight: 'bold'
                     }}
@@ -505,6 +600,8 @@ const ProjectViewFinance = () => {
               </Col>
             </Row>
           </Card>
+
+          
           
           <FinanceTableWrapper activeTablesList={taskGroups} loading={loading} />
         </div>
@@ -529,6 +626,41 @@ const ProjectViewFinance = () => {
           <ImportRatecardsDrawer />
         </Flex>
       )}
+
+      {/* Budget Edit Modal */}
+      <Modal
+        title={t('budgetModal.title')}
+        open={budgetModalVisible}
+        onOk={handleBudgetUpdate}
+        onCancel={handleBudgetCancel}
+        confirmLoading={updatingBudget}
+        okText={t('budgetModal.saveButton')}
+        cancelText={t('budgetModal.cancelButton')}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Typography.Text type="secondary">
+            {t('budgetModal.description')}
+          </Typography.Text>
+        </div>
+        <Input
+          type="number"
+          min={0}
+          step={0.01}
+          value={budgetValue}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBudgetValue(e.target.value)}
+          placeholder={t('budgetModal.placeholder')}
+          prefix={projectCurrency.toUpperCase()}
+          size="large"
+          autoFocus
+        />
+      </Modal>
+
+      {/* Budget Settings Drawer */}
+      <ProjectBudgetSettingsDrawer
+        visible={budgetSettingsDrawerVisible}
+        onClose={() => setBudgetSettingsDrawerVisible(false)}
+        projectId={projectId!}
+      />
     </Flex>
   );
 };

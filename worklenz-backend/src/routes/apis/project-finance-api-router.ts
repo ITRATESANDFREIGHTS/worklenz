@@ -14,7 +14,11 @@ projectFinanceApiRouter.get(
   safeControllerFunction(ProjectfinanceController.getTaskBreakdown)
 );
 projectFinanceApiRouter.put("/task/:task_id/fixed-cost", ProjectfinanceController.updateTaskFixedCost);
+projectFinanceApiRouter.put("/task/:task_id/estimated-man-days", ProjectfinanceController.updateTaskEstimatedManDays);
 projectFinanceApiRouter.put("/project/:project_id/currency", ProjectfinanceController.updateProjectCurrency);
+projectFinanceApiRouter.put("/project/:project_id/budget", ProjectfinanceController.updateProjectBudget);
+projectFinanceApiRouter.put("/project/:project_id/calculation-method", ProjectfinanceController.updateProjectCalculationMethod);
+projectFinanceApiRouter.put("/rate-card-role/:rate_card_role_id/man-day-rate", ProjectfinanceController.updateRateCardManDayRate);
 projectFinanceApiRouter.get("/project/:project_id/export", ProjectfinanceController.exportFinanceData);
 
 export default projectFinanceApiRouter;

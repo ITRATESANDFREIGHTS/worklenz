@@ -2,6 +2,8 @@ export enum FinanceTableColumnKeys {
   TASK = 'task',
   MEMBERS = 'members',
   HOURS = 'hours',
+  MAN_DAYS = 'man_days',
+  ACTUAL_MAN_DAYS = 'actual_man_days',
   TOTAL_TIME_LOGGED = 'total_time_logged',
   ESTIMATED_COST = 'estimated_cost',
   COST = 'cost',
@@ -9,13 +11,14 @@ export enum FinanceTableColumnKeys {
   TOTAL_BUDGET = 'totalBudget',
   TOTAL_ACTUAL = 'totalActual',
   VARIANCE = 'variance',
+  EFFORT_VARIANCE = 'effort_variance',
 }
 
 type FinanceTableColumnsType = {
     key: FinanceTableColumnKeys;
     name: string;
     width: number;
-    type: 'string' | 'hours' | 'currency';
+    type: 'string' | 'hours' | 'currency' | 'man_days' | 'effort_variance';
     render?: (value: any) => React.ReactNode;
   };
   
@@ -38,6 +41,18 @@ type FinanceTableColumnsType = {
       name: 'hoursColumn',
       width: 100,
       type: 'hours',
+    },
+    {
+      key: FinanceTableColumnKeys.MAN_DAYS,
+      name: 'manDaysColumn',
+      width: 100,
+      type: 'man_days',
+    },
+    {
+      key: FinanceTableColumnKeys.ACTUAL_MAN_DAYS,
+      name: 'actualManDaysColumn',
+      width: 100,
+      type: 'man_days',
     },
     {
       key: FinanceTableColumnKeys.TOTAL_TIME_LOGGED,
@@ -81,5 +96,47 @@ type FinanceTableColumnsType = {
       width: 120,
       type: 'currency',
     },
+    {
+      key: FinanceTableColumnKeys.EFFORT_VARIANCE,
+      name: 'effortVarianceColumn',
+      width: 120,
+      type: 'effort_variance',
+    },
   ];
+
+  // Function to get columns based on calculation method
+  export const getFinanceTableColumns = (calculationMethod: 'hourly' | 'man_days' = 'hourly'): FinanceTableColumnsType[] => {
+    return financeTableColumns.filter(column => {
+      // Always show these columns
+      if ([
+        FinanceTableColumnKeys.TASK,
+        FinanceTableColumnKeys.MEMBERS,
+        FinanceTableColumnKeys.TOTAL_TIME_LOGGED,
+        FinanceTableColumnKeys.ESTIMATED_COST,
+        FinanceTableColumnKeys.COST,
+        FinanceTableColumnKeys.FIXED_COST,
+        FinanceTableColumnKeys.TOTAL_BUDGET,
+        FinanceTableColumnKeys.TOTAL_ACTUAL,
+        FinanceTableColumnKeys.VARIANCE
+      ].includes(column.key)) {
+        return true;
+      }
+      
+      // Show hours column only for hourly calculation
+      if (column.key === FinanceTableColumnKeys.HOURS) {
+        return calculationMethod === 'hourly';
+      }
+      
+      // Show man days columns only for man days calculation
+      if ([
+        FinanceTableColumnKeys.MAN_DAYS,
+        FinanceTableColumnKeys.ACTUAL_MAN_DAYS,
+        FinanceTableColumnKeys.EFFORT_VARIANCE
+      ].includes(column.key)) {
+        return calculationMethod === 'man_days';
+      }
+      
+      return false;
+    });
+  };
   

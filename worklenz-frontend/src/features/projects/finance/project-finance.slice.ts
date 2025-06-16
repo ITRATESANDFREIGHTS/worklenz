@@ -2,6 +2,7 @@ import { projectFinanceApiService } from '@/api/project-finance-ratecard/project
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IProjectFinanceGroup, IProjectFinanceTask, IProjectRateCard, IProjectFinanceProject } from '@/types/project/project-finance.types';
 import { parseTimeToSeconds } from '@/utils/timeUtils';
+import { secondsToManDays } from '@/utils/man-days-utils';
 
 type FinanceTabType = 'finance' | 'ratecard';
 type GroupTypes = 'status' | 'priority' | 'phases';
@@ -244,6 +245,34 @@ export const updateTaskFixedCostAsync = createAsyncThunk(
   }
 );
 
+export const updateProjectCalculationMethodAsync = createAsyncThunk(
+  'projectFinances/updateProjectCalculationMethodAsync',
+  async ({ projectId, calculationMethod, hoursPerDay }: { 
+    projectId: string; 
+    calculationMethod: 'hourly' | 'man_days'; 
+    hoursPerDay?: number;
+  }) => {
+    await projectFinanceApiService.updateProjectCalculationMethod(projectId, calculationMethod, hoursPerDay);
+    return { calculationMethod, hoursPerDay };
+  }
+);
+
+export const updateTaskEstimatedManDaysAsync = createAsyncThunk(
+  'projectFinances/updateTaskEstimatedManDaysAsync',
+  async ({ taskId, groupId, estimatedManDays }: { taskId: string; groupId: string; estimatedManDays: number }) => {
+    await projectFinanceApiService.updateTaskEstimatedManDays(taskId, estimatedManDays);
+    return { taskId, groupId, estimatedManDays };
+  }
+);
+
+export const updateRateCardManDayRateAsync = createAsyncThunk(
+  'projectFinances/updateRateCardManDayRateAsync',
+  async ({ rateCardRoleId, manDayRate }: { rateCardRoleId: string; manDayRate: number }) => {
+    await projectFinanceApiService.updateRateCardManDayRate(rateCardRoleId, manDayRate);
+    return { rateCardRoleId, manDayRate };
+  }
+);
+
 // Function to clear calculation cache (useful for testing or when data is refreshed)
 const clearCalculationCache = () => {
   taskCalculationCache.clear();
@@ -364,6 +393,41 @@ export const projectFinancesSlice = createSlice({
     updateProjectFinanceCurrency: (state, action: PayloadAction<string>) => {
       if (state.project) {
         state.project.currency = action.payload;
+      }
+    },
+    updateProjectCalculationMethod: (state, action: PayloadAction<{ calculationMethod: 'hourly' | 'man_days'; hoursPerDay?: number }>) => {
+      if (state.project) {
+        state.project.calculation_method = action.payload.calculationMethod;
+        if (action.payload.hoursPerDay !== undefined) {
+          state.project.hours_per_day = action.payload.hoursPerDay;
+        }
+      }
+    },
+    updateTaskEstimatedManDays: (state, action: PayloadAction<{ taskId: string; groupId: string; estimatedManDays: number }>) => {
+      const { taskId, groupId, estimatedManDays } = action.payload;
+      const group = state.taskGroups.find(g => g.group_id === groupId);
+      
+      if (group) {
+        const result = updateTaskAndRecalculateHierarchy(
+          group.tasks, 
+          taskId, 
+          (task) => ({
+            ...task,
+            estimated_man_days: estimatedManDays
+          })
+        );
+        
+        if (result.updated) {
+          group.tasks = result.tasks;
+        }
+      }
+    },
+    updateRateCardManDayRate: (state, action: PayloadAction<{ rateCardRoleId: string; manDayRate: number }>) => {
+      const { rateCardRoleId, manDayRate } = action.payload;
+      const rateCard = state.projectRateCards.find(rc => rc.id === rateCardRoleId);
+      
+      if (rateCard) {
+        rateCard.man_day_rate = manDayRate.toString();
       }
     },
   },
@@ -496,6 +560,42 @@ export const projectFinancesSlice = createSlice({
             break;
           }
         }
+      })
+      .addCase(updateProjectCalculationMethodAsync.fulfilled, (state, action) => {
+        if (state.project) {
+          state.project.calculation_method = action.payload.calculationMethod;
+          if (action.payload.hoursPerDay !== undefined) {
+            state.project.hours_per_day = action.payload.hoursPerDay;
+          }
+        }
+      })
+      .addCase(updateTaskEstimatedManDaysAsync.fulfilled, (state, action) => {
+        const { taskId, groupId, estimatedManDays } = action.payload;
+        const group = state.taskGroups.find(g => g.group_id === groupId);
+        
+        if (group) {
+          const result = updateTaskAndRecalculateHierarchy(
+            group.tasks, 
+            taskId, 
+            (task) => ({
+              ...task,
+              estimated_man_days: estimatedManDays
+            })
+          );
+          
+          if (result.updated) {
+            group.tasks = result.tasks;
+            clearCalculationCache();
+          }
+        }
+      })
+      .addCase(updateRateCardManDayRateAsync.fulfilled, (state, action) => {
+        const { rateCardRoleId, manDayRate } = action.payload;
+        const rateCard = state.projectRateCards.find(rc => rc.id === rateCardRoleId);
+        
+        if (rateCard) {
+          rateCard.man_day_rate = manDayRate.toString();
+        }
       });
   },
 });
@@ -509,7 +609,10 @@ export const {
   updateTaskEstimatedCost,
   updateTaskTimeLogged,
   toggleTaskExpansion,
-  updateProjectFinanceCurrency
+  updateProjectFinanceCurrency,
+  updateProjectCalculationMethod,
+  updateTaskEstimatedManDays,
+  updateRateCardManDayRate
 } = projectFinancesSlice.actions;
 
 export default projectFinancesSlice.reducer;

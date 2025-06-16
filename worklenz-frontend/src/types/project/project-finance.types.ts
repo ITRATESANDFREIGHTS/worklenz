@@ -22,6 +22,7 @@ export interface IProjectFinanceMember {
   color_code: string;
   project_rate_card_role_id: string | null;
   rate: number;
+  man_day_rate: number;
   job_title_id: string | null;
   job_title_name: string | null;
 }
@@ -31,6 +32,7 @@ export interface IProjectFinanceTask {
   name: string;
   estimated_seconds: number;
   estimated_hours: string; // Formatted time string like "4h 30m 12s"
+  estimated_man_days: number; // Estimated effort in man days
   total_time_logged_seconds: number;
   total_time_logged: string; // Formatted time string like "4h 30m 12s"
   estimated_cost: number;
@@ -38,7 +40,9 @@ export interface IProjectFinanceTask {
   members: IProjectFinanceMember[];
   billable: boolean;
   fixed_cost: number;
-  variance: number;
+  variance: number; // Cost variance (currency)
+  effort_variance_man_days?: number | null; // Effort variance in man days (only for man_days projects)
+  actual_man_days?: number | null; // Actual man days spent (only for man_days projects)
   total_budget: number;
   total_actual: number;
   sub_tasks_count: number; // Number of subtasks
@@ -61,6 +65,7 @@ export interface IProjectRateCard {
   project_id: string;
   job_title_id: string;
   rate: string;
+  man_day_rate: string;
   job_title_name: string;
 }
 
@@ -68,6 +73,8 @@ export interface IProjectFinanceProject {
   id: string;
   name: string;
   currency: string;
+  calculation_method: 'hourly' | 'man_days';
+  hours_per_day: number;
 }
 
 export interface IProjectFinanceResponse {

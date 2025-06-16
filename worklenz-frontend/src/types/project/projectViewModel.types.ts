@@ -66,4 +66,6 @@ export interface IProjectViewModel extends IProject {
   use_weighted_progress?: boolean;
   use_time_progress?: boolean;
   currency?: string;
+  budget?: number;
+  calculation_method?: 'hourly' | 'man_days';
 }
