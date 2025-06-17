@@ -32,6 +32,10 @@ const RatecardTable: React.FC = () => {
   const rolesRedux = useAppSelector((state) => state.projectFinanceRateCard.rateCardRoles) || [];
   const isLoading = useAppSelector((state) => state.projectFinanceRateCard.isLoading);
   const currency = useAppSelector((state) => state.projectFinances.project?.currency || "USD").toUpperCase();
+  const financeProject = useAppSelector((state) => state.projectFinances.project);
+  
+  // Get calculation method from project finance data
+  const calculationMethod = financeProject?.calculation_method || 'hourly';
   const rateInputRefs = React.useRef<Array<HTMLInputElement | null>>([]);
   
   // Auth and permissions
@@ -239,7 +243,7 @@ const RatecardTable: React.FC = () => {
       },
     },
     {
-      title: `${t('ratePerHourColumn')} (${currency})`,
+      title: `${calculationMethod === 'man_days' ? t('ratePerManDayColumn') : t('ratePerHourColumn')} (${currency})`,
       dataIndex: 'rate',
       align: 'right',
       render: (value: number, record: JobRoleType, index: number) => (

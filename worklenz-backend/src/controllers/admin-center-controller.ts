@@ -139,11 +139,6 @@ export default class AdminCenterController extends WorklenzControllerBase {
       return res.status(400).send(new ServerResponse(false, null, "Invalid calculation method. Must be \"hourly\" or \"man_days\""));
     }
 
-    // Validate hours per day
-    if (hours_per_day && (typeof hours_per_day !== "number" || hours_per_day <= 0 || hours_per_day > 24)) {
-      return res.status(400).send(new ServerResponse(false, null, "Invalid hours per day. Must be a positive number between 0 and 24"));
-    }
-
     const updateQuery = `
       UPDATE organizations 
       SET calculation_method = $1, 

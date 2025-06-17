@@ -7,11 +7,13 @@ import { deleteRateCard, fetchRateCardById, fetchRateCards, toggleRatecardDrawer
 import { RatecardType, IJobType } from '@/types/project/ratecard.types';
 import { IJobTitlesViewModel } from '@/types/job.types';
 import { jobTitlesApiService } from '@/api/settings/job-titles/job-titles.api.service';
+import { adminCenterApiService } from '@/api/admin-center/admin-center.api.service';
 import { DeleteOutlined, ExclamationCircleFilled, PlusOutlined } from '@ant-design/icons';
 import { colors } from '@/styles/colors';
 import CreateJobTitlesDrawer from '@/features/settings/job/CreateJobTitlesDrawer';
 import { toggleCreateJobTitleDrawer } from '@/features/settings/job/jobSlice';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '@/shared/constants/currencies';
+import { IOrganization } from '@/types/admin-center/admin-center.types';
 
 interface PaginationType {
   current: number;
@@ -38,6 +40,7 @@ const RatecardDrawer = ({
   const [initialName, setInitialName] = useState<string>('Untitled Rate Card');
   const [initialCurrency, setInitialCurrency] = useState<string>(DEFAULT_CURRENCY);
   const [addingRowIndex, setAddingRowIndex] = useState<number | null>(null);
+  const [organization, setOrganization] = useState<IOrganization | null>(null);
   const { t } = useTranslation('settings/ratecard-settings');
   const drawerLoading = useAppSelector(state => state.financeReducer.isFinanceDrawerloading);
   const drawerRatecard = useAppSelector(state => state.financeReducer.drawerRatecard);
@@ -66,6 +69,10 @@ const RatecardDrawer = ({
   const [messageApi, contextHolder] = message.useMessage();
   const [isCreatingJobTitle, setIsCreatingJobTitle] = useState(false);
   const [newJobTitleName, setNewJobTitleName] = useState('');
+
+  // Determine if we're using man days calculation method
+  const isManDaysMethod = organization?.calculation_method === 'man_days';
+  
   // Detect changes
   const hasChanges = useMemo(() => {
     const rolesChanged = JSON.stringify(roles) !== JSON.stringify(initialRoles);
@@ -73,6 +80,24 @@ const RatecardDrawer = ({
     const currencyChanged = currency !== initialCurrency;
     return rolesChanged || nameChanged || currencyChanged;
   }, [roles, name, currency, initialRoles, initialName, initialCurrency]);
+
+  // Fetch organization details
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      try {
+        const response = await adminCenterApiService.getOrganizationDetails();
+        if (response.done) {
+          setOrganization(response.body);
+        }
+      } catch (error) {
+        console.error('Failed to fetch organization details:', error);
+      }
+    };
+
+    if (isDrawerOpen) {
+      fetchOrganization();
+    }
+  }, [isDrawerOpen]);
 
   const getJobTitles = useMemo(() => {
     return async () => {
@@ -123,8 +148,9 @@ const RatecardDrawer = ({
       .map(jt => ({
         jobtitle: jt.name,
         rate_card_id: ratecardId,
-        job_title_id: jt.id!,
+        job_title_id: jt.id || '',
         rate: 0,
+        man_day_rate: 0,
       }));
     const mergedRoles = [...roles, ...newRoles].filter(
       (role, idx, arr) =>
@@ -144,6 +170,7 @@ const RatecardDrawer = ({
         rate_card_id: ratecardId,
         job_title_id: '',
         rate: 0,
+        man_day_rate: 0,
       };
       setRoles([...roles, newRole]);
       setAddingRowIndex(roles.length);
@@ -173,6 +200,7 @@ const RatecardDrawer = ({
           rate_card_id: ratecardId,
           job_title_id: response.body.id,
           rate: 0,
+          man_day_rate: 0,
         };
         setRoles([...roles, newRole]);
         
@@ -214,6 +242,7 @@ const RatecardDrawer = ({
         rate_card_id: ratecardId,
         job_title_id: jobTitleId,
         rate: 0,
+        man_day_rate: 0,
       };
       setRoles([...roles, newRole]);
     }
@@ -293,7 +322,7 @@ const RatecardDrawer = ({
                 setAddingRowIndex(null);
               }}
               filterOption={(input, option) =>
-                (option?.children as string).toLowerCase().includes(input.toLowerCase())
+                String(option?.children || '').toLowerCase().includes(input.toLowerCase())
               }
             >
               {jobTitles.data
@@ -316,13 +345,15 @@ const RatecardDrawer = ({
       },
     },
     {
-      title: `${t('ratePerHourColumn')} (${currency})`,
-      dataIndex: 'rate',
-      align: 'right',
+      title: isManDaysMethod 
+        ? `${t('ratePerManDayColumn', { ns: 'project-view-finance' }) || 'Rate per day'} (${currency})` 
+        : `${t('ratePerHourColumn')} (${currency})`,
+      dataIndex: isManDaysMethod ? 'man_day_rate' : 'rate',
+      align: 'right' as const,
       render: (text: number, record: any, index: number) => (
         <Input
           type="number"
-          value={roles[index]?.rate ?? 0}
+          value={isManDaysMethod ? (roles[index]?.man_day_rate ?? 0) : (roles[index]?.rate ?? 0)}
           min={0}
           style={{
             background: 'transparent',
@@ -332,8 +363,17 @@ const RatecardDrawer = ({
             padding: 0,
           }}
           onChange={(e) => {
+            const newValue = parseInt(e.target.value, 10) || 0;
             const updatedRoles = roles.map((role, idx) =>
-              idx === index ? { ...role, rate: parseInt(e.target.value, 10) || 0 } : role
+              idx === index 
+                ? { 
+                    ...role, 
+                    ...(isManDaysMethod 
+                      ? { man_day_rate: newValue } 
+                      : { rate: newValue }
+                    )
+                  } 
+                : role
             );
             setRoles(updatedRoles);
           }}
@@ -520,6 +560,19 @@ const RatecardDrawer = ({
               ),
             }}
           />
+
+          {organization && (
+            <Alert
+              message={
+                isManDaysMethod 
+                  ? `Organization is using man days calculation (${organization.hours_per_day || 8}h/day). Rates above represent daily rates.`
+                  : 'Organization is using hourly calculation. Rates above represent hourly rates.'
+              }
+              type="info"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
         </Flex>
       </Drawer>
       <CreateJobTitlesDrawer />

@@ -7,6 +7,8 @@ import { fetchRateCards, toggleImportRatecardsDrawer } from '../finance-slice';
 import { fetchRateCardById } from '../finance-slice';
 import { insertProjectRateCardRoles } from '../project-finance-slice';
 import { useParams } from 'react-router-dom';
+import { adminCenterApiService } from '@/api/admin-center/admin-center.api.service';
+import { IOrganization } from '@/types/admin-center/admin-center.types';
 
 const ImportRatecardsDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -35,12 +37,34 @@ const ImportRatecardsDrawer: React.FC = () => {
   );
 
   const [selectedRatecardId, setSelectedRatecardId] = useState<string | null>(null);
+  const [organization, setOrganization] = useState<IOrganization | null>(null);
+  
+  // Get calculation method from organization
+  const calculationMethod = organization?.calculation_method || 'hourly';
 
   useEffect(() => {
     if (selectedRatecardId) {
       dispatch(fetchRateCardById(selectedRatecardId));
     }
   }, [selectedRatecardId, dispatch]);
+
+  // Fetch organization details to get calculation method
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      try {
+        const response = await adminCenterApiService.getOrganizationDetails();
+        if (response.done) {
+          setOrganization(response.body);
+        }
+      } catch (error) {
+        console.error('Failed to fetch organization details:', error);
+      }
+    };
+
+    if (isDrawerOpen) {
+      fetchOrganization();
+    }
+  }, [isDrawerOpen]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -71,7 +95,7 @@ const ImportRatecardsDrawer: React.FC = () => {
       ),
     },
     {
-      title: `${t('ratePerHourColumn')} (${currency})`,
+      title: `${calculationMethod === 'man_days' ? t('ratePerManDayColumn') : t('ratePerHourColumn')} (${currency})`,
       dataIndex: 'rate',
       render: (text: number) => <Typography.Text>{text}</Typography.Text>,
     },
@@ -110,9 +134,10 @@ const ImportRatecardsDrawer: React.FC = () => {
                       insertProjectRateCardRoles({
                         project_id: projectId,
                         roles: drawerRatecard.jobRolesList
-                          .filter((role) => typeof role.rate !== 'undefined')
+                          .filter((role) => typeof role.rate !== 'undefined' && role.job_title_id)
                           .map((role) => ({
                             ...role,
+                            job_title_id: role.job_title_id!,
                             rate: Number(role.rate),
                           })),
                       })
@@ -159,7 +184,7 @@ const ImportRatecardsDrawer: React.FC = () => {
           style={{ flex: 1 }}
           dataSource={drawerRatecard?.jobRolesList || []}
           columns={columns}
-          rowKey={(record) => record.job_title_id}
+          rowKey={(record) => record.job_title_id || record.id || Math.random().toString()}
           onRow={() => ({
             className: 'group',
             style: { cursor: 'pointer' },

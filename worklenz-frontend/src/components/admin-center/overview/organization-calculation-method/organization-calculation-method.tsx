@@ -39,10 +39,7 @@ const OrganizationCalculationMethod: React.FC<OrganizationCalculationMethodProps
   const handleSave = async () => {
     setUpdating(true);
     try {
-      await adminCenterApiService.updateOrganizationCalculationMethod(
-        currentMethod,
-        organization?.hours_per_day
-      );
+      await adminCenterApiService.updateOrganizationCalculationMethod(currentMethod);
 
       message.success(
         currentMethod === 'hourly' 

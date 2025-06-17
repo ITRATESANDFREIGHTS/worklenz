@@ -16,6 +16,8 @@
 
   "jobTitleColumn": "Job title",
   "ratePerHourColumn": "Rate per hour",
+  "ratePerDayColumn": "Rate per day",
+  "ratePerManDayColumn": "Rate per man day",
   "saveButton": "Save",
   "addRoleButton": "Add Role",
   "createRatecardSuccessMessage": "Rate card created successfully",

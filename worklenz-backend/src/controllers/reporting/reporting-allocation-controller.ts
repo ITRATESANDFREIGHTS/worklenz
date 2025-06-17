@@ -543,9 +543,9 @@ export default class ReportingAllocationController extends ReportingControllerBa
     }
 
     // Get organization working hours
-    const orgWorkingHoursQuery = `SELECT working_hours FROM organizations WHERE id = (SELECT t.organization_id FROM teams t WHERE t.id IN (${teamIds}) LIMIT 1)`;
+    const orgWorkingHoursQuery = `SELECT hours_per_day FROM organizations WHERE id = (SELECT t.organization_id FROM teams t WHERE t.id IN (${teamIds}) LIMIT 1)`;
     const orgWorkingHoursResult = await db.query(orgWorkingHoursQuery, []);
-    const orgWorkingHours = orgWorkingHoursResult.rows[0]?.working_hours || 8;
+    const orgWorkingHours = orgWorkingHoursResult.rows[0]?.hours_per_day || 8;
     
     // Calculate total working hours with minimum baseline for non-working day scenarios
     let totalWorkingHours = workingDays * orgWorkingHours;

@@ -5,8 +5,13 @@
 
 BEGIN;
 
--- Create enum for calculation methods
-CREATE TYPE calculation_method_type AS ENUM ('hourly', 'man_days');
+-- Create enum for calculation methods (if it doesn't already exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'calculation_method_type') THEN
+        CREATE TYPE calculation_method_type AS ENUM ('hourly', 'man_days');
+    END IF;
+END $$;
 
 -- Add calculation method to projects table
 ALTER TABLE projects 

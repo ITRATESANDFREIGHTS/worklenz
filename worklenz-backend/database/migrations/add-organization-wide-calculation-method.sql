@@ -5,14 +5,14 @@
 
 BEGIN;
 
--- Add calculation method and hours per day to organizations table
+-- Add calculation method and hours per day to organizations table (if they don't already exist)
 ALTER TABLE organizations 
 ADD COLUMN IF NOT EXISTS calculation_method calculation_method_type DEFAULT 'hourly' NOT NULL,
 ADD COLUMN IF NOT EXISTS hours_per_day NUMERIC(4, 2) DEFAULT 8.0 CHECK (hours_per_day > 0 AND hours_per_day <= 24);
 
 -- Add comments for documentation
 COMMENT ON COLUMN organizations.calculation_method IS 'Organization-wide calculation method: determines whether all projects use hourly rates or man days for cost calculations';
-COMMENT ON COLUMN organizations.hours_per_day IS 'Organization-wide working hours per day for man day calculations (default 8.0)';
+COMMENT ON COLUMN organizations.hours_per_day IS 'Organization-wide working hours per day for man day calculations and project progress tracking';
 
 -- Migrate existing project-level settings to organization level
 -- For each organization, use the most common calculation method from its projects
@@ -29,14 +29,25 @@ WITH org_calc_methods AS (
        LIMIT 1), 
       'hourly'
     ) as most_common_method,
-    COALESCE(
-      (SELECT AVG(hours_per_day) 
-       FROM projects p 
-       JOIN teams t ON p.team_id = t.id 
-       WHERE t.organization_id = o.id 
-       AND hours_per_day IS NOT NULL), 
-      8.0
-    ) as avg_hours_per_day
+    -- Calculate valid hours_per_day with proper fallback
+    CASE 
+      WHEN (SELECT AVG(hours_per_day) 
+            FROM projects p 
+            JOIN teams t ON p.team_id = t.id 
+            WHERE t.organization_id = o.id 
+            AND hours_per_day IS NOT NULL 
+            AND hours_per_day > 0 
+            AND hours_per_day <= 24) IS NOT NULL 
+      THEN LEAST(GREATEST(
+             (SELECT AVG(hours_per_day) 
+              FROM projects p 
+              JOIN teams t ON p.team_id = t.id 
+              WHERE t.organization_id = o.id 
+              AND hours_per_day IS NOT NULL 
+              AND hours_per_day > 0 
+              AND hours_per_day <= 24), 1.0), 24.0)
+      ELSE 8.0
+    END as avg_hours_per_day
   FROM organizations o
 )
 UPDATE organizations 

@@ -114,11 +114,6 @@ const Overview: React.FC = () => {
           refetch={getOrganizationDetails}
         />
 
-        <OrganizationCalculationMethod
-          organization={organization}
-          refetch={getOrganizationDetails}
-        />
-
         <Card>
           <Typography.Title level={5} style={{ margin: 0 }}>{t('organizationWorkingDaysAndHours') || 'Organization Working Days & Hours'}</Typography.Title>
           <Form
@@ -149,6 +144,11 @@ const Overview: React.FC = () => {
             </Form.Item>
           </Form>
         </Card>
+
+        <OrganizationCalculationMethod
+          organization={organization}
+          refetch={getOrganizationDetails}
+        />
 
         <Card>
           <Typography.Title level={5} style={{ margin: 0 }}>

@@ -573,12 +573,14 @@ CREATE TABLE IF NOT EXISTS organizations (
     updated_at               TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     license_type_id          UUID,
     is_lkr_billing           BOOLEAN                  DEFAULT FALSE,
-    working_hours            DOUBLE PRECISION         DEFAULT 8                  NOT NULL
+    calculation_method       calculation_method_type  DEFAULT 'hourly'           NOT NULL,
+    hours_per_day            NUMERIC(4, 2)           DEFAULT 8.0                 CHECK (hours_per_day > 0 AND hours_per_day <= 24),
+    CONSTRAINT organizations_pk
+        PRIMARY KEY (id)
 );
 
-ALTER TABLE organizations
-    ADD CONSTRAINT organizations_pk
-        PRIMARY KEY (id);
+COMMENT ON COLUMN organizations.calculation_method IS 'Organization-wide calculation method: determines whether all projects use hourly rates or man days for cost calculations';
+COMMENT ON COLUMN organizations.hours_per_day IS 'Organization-wide working hours per day for man day calculations and project progress tracking';
 
 ALTER TABLE organizations
     ADD CONSTRAINT organizations_pk_2
