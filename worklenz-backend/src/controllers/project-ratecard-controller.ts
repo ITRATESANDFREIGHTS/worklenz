@@ -95,11 +95,21 @@ export default class ProjectRateCardController extends WorklenzControllerBase {
   @HandleExceptions()
   public static async updateById(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
     const { id } = req.params;
-    const { job_title_id, rate } = req.body;
+    const { job_title_id, rate, man_day_rate } = req.body;
+    let setClause = "job_title_id = $1, updated_at = NOW()";
+    const values = [job_title_id];
+    if (typeof man_day_rate !== "undefined") {
+      setClause += ", man_day_rate = $2";
+      values.push(man_day_rate);
+    } else {
+      setClause += ", rate = $2";
+      values.push(rate);
+    }
+    values.push(id);
     const q = `
       WITH updated AS (
       UPDATE finance_project_rate_card_roles
-      SET job_title_id = $1, rate = $2, updated_at = NOW()
+      SET ${setClause}
       WHERE id = $3
       RETURNING *
       ),
@@ -118,7 +128,7 @@ export default class ProjectRateCardController extends WorklenzControllerBase {
       FROM jobtitles jt
       LEFT JOIN members m ON m.project_rate_card_role_id = jt.id;
     `;
-    const result = await db.query(q, [job_title_id, rate, id]);
+    const result = await db.query(q, values);
     return res.status(200).send(new ServerResponse(true, result.rows[0]));
   }
 
@@ -209,17 +219,19 @@ export default class ProjectRateCardController extends WorklenzControllerBase {
       return res.status(200).send(new ServerResponse(true, []));
     }
     // Build upsert query for all roles
+    const columns = ["project_id", "job_title_id", "rate", "man_day_rate"];
     const values = roles.map((role: any) => [
       project_id,
       role.job_title_id,
-      role.rate
+      typeof role.rate !== "undefined" ? role.rate : null,
+      typeof role.man_day_rate !== "undefined" ? role.man_day_rate : null
     ]);
     const q = `
         WITH upserted AS (
-        INSERT INTO finance_project_rate_card_roles (project_id, job_title_id, rate)
-        VALUES ${values.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(",")}
+        INSERT INTO finance_project_rate_card_roles (${columns.join(", ")})
+        VALUES ${values.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(",")}
         ON CONFLICT (project_id, job_title_id)
-        DO UPDATE SET rate = EXCLUDED.rate, updated_at = NOW()
+        DO UPDATE SET rate = EXCLUDED.rate, man_day_rate = EXCLUDED.man_day_rate, updated_at = NOW()
         RETURNING *
         ),
         jobtitles AS (

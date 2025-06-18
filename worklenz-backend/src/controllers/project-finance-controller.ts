@@ -115,7 +115,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
-          COALESCE(t.estimated_man_days, 0) as estimated_man_days,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND archived = false) as sub_tasks_count,
           0 as level,
@@ -141,7 +141,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
-          COALESCE(t.estimated_man_days, 0) as estimated_man_days,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           0 as sub_tasks_count,
           tt.level + 1 as level,
@@ -155,10 +155,25 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           tt.*,
           -- Calculate estimated cost based on organization calculation method
           CASE 
-            WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = tt.project_id) = 'man_days' THEN
+            WHEN $2 = 'man_days' THEN
               -- Man days calculation: use estimated_man_days * man_day_rate
               COALESCE((
-                SELECT SUM(tt.estimated_man_days * COALESCE(fprr.man_day_rate, 0))
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      -- Use total_minutes if available, otherwise use estimated_seconds
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN ((tt.total_minutes / 60.0) / $3) * COALESCE(fprr.man_day_rate, 0)
+                        ELSE ((tt.estimated_seconds / 3600.0) / $3) * COALESCE(fprr.man_day_rate, 0)
+                      END
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                        ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                      END
+                  END
+                )
                 FROM json_array_elements(tt.assignees) AS assignee_json
                 LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
                   AND pm.project_id = tt.project_id
@@ -168,7 +183,12 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
             ELSE
               -- Hourly calculation: use estimated_hours * hourly_rate
               COALESCE((
-                SELECT SUM((tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0))
+                SELECT SUM(
+                  CASE 
+                    WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                    ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                  END
+                )
                 FROM json_array_elements(tt.assignees) AS assignee_json
                 LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
                   AND pm.project_id = tt.project_id
@@ -176,16 +196,39 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
                 WHERE assignee_json->>'team_member_id' IS NOT NULL
               ), 0)
           END as estimated_cost,
-          -- Calculate actual cost based on time logged (always hourly for actual time)
-          COALESCE((
-            SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
-            FROM task_work_log twl 
-            LEFT JOIN users u ON twl.user_id = u.id
-            LEFT JOIN team_members tm ON u.id = tm.user_id
-            LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
-            LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
-            WHERE twl.task_id = tt.id
-          ), 0) as actual_cost_from_logs
+          -- Calculate actual cost based on organization calculation method
+          CASE 
+            WHEN $2 = 'man_days' THEN
+              -- Man days calculation: convert actual time to man days and multiply by man day rates
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      COALESCE(fprr.man_day_rate, 0) * ((twl.time_spent / 3600.0) / $3)
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0)
+                  END
+                )
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+            ELSE
+              -- Hourly calculation: use actual time logged * hourly rates
+              COALESCE((
+                SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+          END as actual_cost_from_logs
         FROM task_tree tt
       ),
       aggregated_tasks AS (
@@ -217,14 +260,6 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
             )
             ELSE tc.estimated_seconds
           END as estimated_seconds,
-          CASE 
-            WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_man_days)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
-            )
-            ELSE tc.estimated_man_days
-          END as estimated_man_days,
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
               SELECT SUM(sub_tc.total_time_logged_seconds)
@@ -259,24 +294,24 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         ((at.actual_cost_from_logs + at.fixed_cost) - (at.estimated_cost + at.fixed_cost)) as variance,
         -- Add effort variance for man days calculation
         CASE 
-          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
+          WHEN $2 = 'man_days' THEN
             -- Effort variance in man days: actual man days - estimated man days
-            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)) - 
-            COALESCE(at.estimated_man_days, 0)
+            ((at.total_time_logged_seconds / 3600.0) / $3) - 
+            ((at.estimated_seconds / 3600.0) / $3)
           ELSE 
             NULL -- No effort variance for hourly projects
         END as effort_variance_man_days,
         -- Add actual man days for man days calculation
         CASE 
-          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
-            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)
+          WHEN $2 = 'man_days' THEN
+            (at.total_time_logged_seconds / 3600.0) / $3
           ELSE 
             NULL
         END as actual_man_days
       FROM aggregated_tasks at;
     `;
 
-    const result = await db.query(q, [projectId]);
+    const result = await db.query(q, [projectId, project.calculation_method, project.hours_per_day]);
     const tasks = result.rows;
 
     // Add color_code to each assignee and include their rate information using project_members
@@ -290,7 +325,6 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
             SELECT 
               pm.project_rate_card_role_id,
               fprr.rate,
-              fprr.man_day_rate,
               fprr.job_title_id,
               jt.name as job_title_name
             FROM project_members pm
@@ -309,14 +343,12 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
               assignee.project_rate_card_role_id =
                 memberRate.project_rate_card_role_id;
               assignee.rate = memberRate.rate ? Number(memberRate.rate) : 0;
-              assignee.man_day_rate = memberRate.man_day_rate ? Number(memberRate.man_day_rate) : 0;
               assignee.job_title_id = memberRate.job_title_id;
               assignee.job_title_name = memberRate.job_title_name;
             } else {
               // Member doesn't have a rate card role assigned
               assignee.project_rate_card_role_id = null;
               assignee.rate = 0;
-              assignee.man_day_rate = 0;
               assignee.job_title_id = null;
               assignee.job_title_name = null;
             }
@@ -327,7 +359,6 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
             );
             assignee.project_rate_card_role_id = null;
             assignee.rate = 0;
-            assignee.man_day_rate = 0;
             assignee.job_title_id = null;
             assignee.job_title_name = null;
           }
@@ -406,7 +437,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           name: task.name,
           estimated_seconds: Number(task.estimated_seconds) || 0,
           estimated_hours: formatTimeToHMS(Number(task.estimated_seconds) || 0),
-          estimated_man_days: Number(task.estimated_man_days) || 0,
+          total_minutes: Number(task.total_minutes) || 0,
           total_time_logged_seconds:
             Number(task.total_time_logged_seconds) || 0,
           total_time_logged: formatTimeToHMS(
@@ -694,6 +725,25 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         .send(new ServerResponse(false, null, "Parent task ID is required"));
     }
 
+    // Get project information including currency and organization calculation method
+    const projectQuery = `
+      SELECT 
+        p.id, 
+        p.name, 
+        p.currency,
+        o.calculation_method,
+        o.hours_per_day
+      FROM projects p
+      JOIN teams t ON p.team_id = t.id
+      JOIN organizations o ON t.organization_id = o.id
+      WHERE p.id = $1;
+    `;
+    const projectResult = await db.query(projectQuery, [projectId]);
+    if (projectResult.rows.length === 0) {
+      return res.status(404).send(new ServerResponse(false, null, "Project not found"));
+    }
+    const project = projectResult.rows[0];
+
     // Build billable filter condition for subtasks
     let billableCondition = "";
     if (billableFilter === "billable") {
@@ -718,6 +768,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND archived = false) as sub_tasks_count,
           0 as level,
@@ -743,6 +794,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           0 as sub_tasks_count,
           tt.level + 1 as level,
@@ -754,25 +806,82 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       task_costs AS (
         SELECT 
           tt.*,
-          -- Calculate estimated cost based on estimated hours and assignee rates
-          COALESCE((
-            SELECT SUM((tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0))
-            FROM json_array_elements(tt.assignees) AS assignee_json
-            LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
-              AND pm.project_id = tt.project_id
-            LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
-            WHERE assignee_json->>'team_member_id' IS NOT NULL
-          ), 0) as estimated_cost,
-          -- Calculate actual cost based on time logged and assignee rates
-          COALESCE((
-            SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
-            FROM task_work_log twl 
-            LEFT JOIN users u ON twl.user_id = u.id
-            LEFT JOIN team_members tm ON u.id = tm.user_id
-            LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
-            LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
-            WHERE twl.task_id = tt.id
-          ), 0) as actual_cost_from_logs
+          -- Calculate estimated cost based on organization calculation method
+          CASE 
+            WHEN $3 = 'man_days' THEN
+              -- Man days calculation: use estimated_man_days * man_day_rate
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      -- Use total_minutes if available, otherwise use estimated_seconds
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN ((tt.total_minutes / 60.0) / $4) * COALESCE(fprr.man_day_rate, 0)
+                        ELSE ((tt.estimated_seconds / 3600.0) / $4) * COALESCE(fprr.man_day_rate, 0)
+                      END
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                        ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                      END
+                  END
+                )
+                FROM json_array_elements(tt.assignees) AS assignee_json
+                LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
+                  AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE assignee_json->>'team_member_id' IS NOT NULL
+              ), 0)
+            ELSE
+              -- Hourly calculation: use estimated_hours * hourly_rate
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                    ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                  END
+                )
+                FROM json_array_elements(tt.assignees) AS assignee_json
+                LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
+                  AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE assignee_json->>'team_member_id' IS NOT NULL
+              ), 0)
+          END as estimated_cost,
+          -- Calculate actual cost based on organization calculation method
+          CASE 
+            WHEN $3 = 'man_days' THEN
+              -- Man days calculation: convert actual time to man days and multiply by man day rates
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      COALESCE(fprr.man_day_rate, 0) * ((twl.time_spent / 3600.0) / $4)
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0)
+                  END
+                )
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+            ELSE
+              -- Hourly calculation: use actual time logged * hourly rates
+              COALESCE((
+                SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+          END as actual_cost_from_logs
         FROM task_tree tt
       ),
       aggregated_tasks AS (
@@ -839,7 +948,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       FROM aggregated_tasks at;
     `;
 
-    const result = await db.query(q, [projectId, parentTaskId]);
+    const result = await db.query(q, [projectId, parentTaskId, project.calculation_method, project.hours_per_day]);
     const tasks = result.rows;
 
     // Add color_code to each assignee and include their rate information
@@ -896,6 +1005,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       name: task.name,
       estimated_seconds: Number(task.estimated_seconds) || 0,
       estimated_hours: formatTimeToHMS(Number(task.estimated_seconds) || 0),
+      total_minutes: Number(task.total_minutes) || 0,
       total_time_logged_seconds: Number(task.total_time_logged_seconds) || 0,
       total_time_logged: formatTimeToHMS(
         Number(task.total_time_logged_seconds) || 0
@@ -906,6 +1016,8 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       total_budget: Number(task.total_budget) || 0,
       total_actual: Number(task.total_actual) || 0,
       variance: Number(task.variance) || 0,
+      effort_variance_man_days: task.effort_variance_man_days ? Number(task.effort_variance_man_days) : null,
+      actual_man_days: task.actual_man_days ? Number(task.actual_man_days) : null,
       members: task.assignees,
       billable: task.billable,
       sub_tasks_count: Number(task.sub_tasks_count) || 0,
@@ -923,9 +1035,26 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
     const groupBy = (req.query.groupBy as string) || "status";
     const billableFilter = req.query.billable_filter || "billable";
 
-    // Get project name and currency for filename and export
-    const projectQuery = `SELECT name, currency FROM projects WHERE id = $1`;
+    // Get project information including currency and organization calculation method
+    const projectQuery = `
+      SELECT 
+        p.id, 
+        p.name, 
+        p.currency,
+        o.calculation_method,
+        o.hours_per_day
+      FROM projects p
+      JOIN teams t ON p.team_id = t.id
+      JOIN organizations o ON t.organization_id = o.id
+      WHERE p.id = $1
+    `;
     const projectResult = await db.query(projectQuery, [projectId]);
+    
+    if (projectResult.rows.length === 0) {
+      res.status(404).send(new ServerResponse(false, null, "Project not found"));
+      return;
+    }
+    
     const project = projectResult.rows[0];
     const projectName = project?.name || "Unknown Project";
     const projectCurrency = project?.currency || "USD";
@@ -971,6 +1100,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND archived = false) as sub_tasks_count,
           0 as level,
@@ -996,6 +1126,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           t.billable,
           COALESCE(t.fixed_cost, 0) as fixed_cost,
           COALESCE(t.total_minutes * 60, 0) as estimated_seconds,
+          COALESCE(t.total_minutes, 0) as total_minutes,
           COALESCE((SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id), 0) as total_time_logged_seconds,
           0 as sub_tasks_count,
           tt.level + 1 as level,
@@ -1007,25 +1138,82 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
       task_costs AS (
         SELECT 
           tt.*,
-          -- Calculate estimated cost based on estimated hours and assignee rates
-          COALESCE((
-            SELECT SUM((tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0))
-            FROM json_array_elements(tt.assignees) AS assignee_json
-            LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
-              AND pm.project_id = tt.project_id
-            LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
-            WHERE assignee_json->>'team_member_id' IS NOT NULL
-          ), 0) as estimated_cost,
-          -- Calculate actual cost based on time logged and assignee rates
-          COALESCE((
-            SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
-            FROM task_work_log twl 
-            LEFT JOIN users u ON twl.user_id = u.id
-            LEFT JOIN team_members tm ON u.id = tm.user_id
-            LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
-            LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
-            WHERE twl.task_id = tt.id
-          ), 0) as actual_cost_from_logs
+          -- Calculate estimated cost based on organization calculation method
+          CASE 
+            WHEN $2 = 'man_days' THEN
+              -- Man days calculation: use estimated_man_days * man_day_rate
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      -- Use total_minutes if available, otherwise use estimated_seconds
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN ((tt.total_minutes / 60.0) / $3) * COALESCE(fprr.man_day_rate, 0)
+                        ELSE ((tt.estimated_seconds / 3600.0) / $3) * COALESCE(fprr.man_day_rate, 0)
+                      END
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      CASE 
+                        WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                        ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                      END
+                  END
+                )
+                FROM json_array_elements(tt.assignees) AS assignee_json
+                LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
+                  AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE assignee_json->>'team_member_id' IS NOT NULL
+              ), 0)
+            ELSE
+              -- Hourly calculation: use estimated_hours * hourly_rate
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN tt.total_minutes > 0 THEN (tt.total_minutes / 60.0) * COALESCE(fprr.rate, 0)
+                    ELSE (tt.estimated_seconds / 3600.0) * COALESCE(fprr.rate, 0)
+                  END
+                )
+                FROM json_array_elements(tt.assignees) AS assignee_json
+                LEFT JOIN project_members pm ON pm.team_member_id = (assignee_json->>'team_member_id')::uuid 
+                  AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE assignee_json->>'team_member_id' IS NOT NULL
+              ), 0)
+          END as estimated_cost,
+          -- Calculate actual cost based on organization calculation method
+          CASE 
+            WHEN $2 = 'man_days' THEN
+              -- Man days calculation: convert actual time to man days and multiply by man day rates
+              COALESCE((
+                SELECT SUM(
+                  CASE 
+                    WHEN COALESCE(fprr.man_day_rate, 0) > 0 THEN 
+                      COALESCE(fprr.man_day_rate, 0) * ((twl.time_spent / 3600.0) / $3)
+                    ELSE 
+                      -- Fallback to hourly rate if man_day_rate is 0
+                      COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0)
+                  END
+                )
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+            ELSE
+              -- Hourly calculation: use actual time logged * hourly rates
+              COALESCE((
+                SELECT SUM(COALESCE(fprr.rate, 0) * (twl.time_spent / 3600.0))
+                FROM task_work_log twl 
+                LEFT JOIN users u ON twl.user_id = u.id
+                LEFT JOIN team_members tm ON u.id = tm.user_id
+                LEFT JOIN project_members pm ON pm.team_member_id = tm.id AND pm.project_id = tt.project_id
+                LEFT JOIN finance_project_rate_card_roles fprr ON fprr.id = pm.project_rate_card_role_id
+                WHERE twl.task_id = tt.id
+              ), 0)
+          END as actual_cost_from_logs
         FROM task_tree tt
       ),
       aggregated_tasks AS (
@@ -1091,24 +1279,24 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         ((at.actual_cost_from_logs + at.fixed_cost) - (at.estimated_cost + at.fixed_cost)) as variance,
         -- Add effort variance for man days calculation
         CASE 
-          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
+          WHEN $2 = 'man_days' THEN
             -- Effort variance in man days: actual man days - estimated man days
-            ((at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)) - 
-            COALESCE(at.estimated_man_days, 0)
+            ((at.total_time_logged_seconds / 3600.0) / $3) - 
+            ((at.estimated_seconds / 3600.0) / $3)
           ELSE 
             NULL -- No effort variance for hourly projects
         END as effort_variance_man_days,
         -- Add actual man days for man days calculation
         CASE 
-          WHEN (SELECT o.calculation_method FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1) = 'man_days' THEN
-            (at.total_time_logged_seconds / 3600.0) / COALESCE((SELECT o.hours_per_day FROM projects p JOIN teams t ON p.team_id = t.id JOIN organizations o ON t.organization_id = o.id WHERE p.id = $1), 8.0)
+          WHEN $2 = 'man_days' THEN
+            (at.total_time_logged_seconds / 3600.0) / $3
           ELSE 
             NULL
         END as actual_man_days
       FROM aggregated_tasks at;
     `;
 
-    const result = await db.query(q, [projectId]);
+    const result = await db.query(q, [projectId, project.calculation_method, project.hours_per_day]);
     const tasks = result.rows;
 
     // Add color_code to each assignee and include their rate information using project_members
@@ -1234,6 +1422,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           name: task.name,
           estimated_seconds: Number(task.estimated_seconds) || 0,
           estimated_hours: formatTimeToHMS(Number(task.estimated_seconds) || 0),
+          total_minutes: Number(task.total_minutes) || 0,
           total_time_logged_seconds:
             Number(task.total_time_logged_seconds) || 0,
           total_time_logged: formatTimeToHMS(
@@ -1245,6 +1434,8 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           total_budget: Number(task.total_budget) || 0,
           total_actual: Number(task.total_actual) || 0,
           variance: Number(task.variance) || 0,
+          effort_variance_man_days: task.effort_variance_man_days ? Number(task.effort_variance_man_days) : null,
+          actual_man_days: task.actual_man_days ? Number(task.actual_man_days) : null,
           members: task.assignees,
           billable: task.billable,
           sub_tasks_count: Number(task.sub_tasks_count) || 0,
@@ -1571,35 +1762,5 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
     }));
   }
 
-  @HandleExceptions()
-  public static async updateTaskEstimatedManDays(
-    req: IWorkLenzRequest,
-    res: IWorkLenzResponse
-  ): Promise<IWorkLenzResponse> {
-    const taskId = req.params.task_id;
-    const { estimated_man_days } = req.body;
 
-    // Validate estimated man days
-    if (typeof estimated_man_days !== "number" || estimated_man_days < 0) {
-      return res.status(400).send(new ServerResponse(false, null, "Invalid estimated man days. Must be a non-negative number"));
-    }
-
-    const updateQuery = `
-      UPDATE tasks 
-      SET estimated_man_days = $1, updated_at = NOW()
-      WHERE id = $2
-      RETURNING id, name, estimated_man_days;
-    `;
-
-    const result = await db.query(updateQuery, [estimated_man_days, taskId]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).send(new ServerResponse(false, null, "Task not found"));
-    }
-
-    return res.status(200).send(new ServerResponse(true, {
-      task: result.rows[0],
-      message: "Task estimated man days updated successfully"
-    }));
-  }
 }

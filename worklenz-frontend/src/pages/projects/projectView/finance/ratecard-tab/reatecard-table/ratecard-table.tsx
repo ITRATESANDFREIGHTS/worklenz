@@ -122,11 +122,12 @@ const RatecardTable: React.FC = () => {
   const handleSaveAll = () => {
     if (projectId) {
       const filteredRoles = roles
-        .filter((r) => r.job_title_id && typeof r.rate !== 'undefined')
+        .filter((r) => typeof r.job_title_id === 'string' && r.job_title_id && typeof r.rate !== 'undefined')
         .map((r) => ({
-          job_title_id: r.job_title_id,
+          job_title_id: r.job_title_id as string,
           jobtitle: r.jobtitle || r.name || '',
-          rate: Number(r.rate),
+          rate: Number(r.rate ?? 0),
+          man_day_rate: Number(r.man_day_rate ?? 0),
         }));
       dispatch(updateProjectRateCardRolesByProjectId({ project_id: projectId, roles: filteredRoles }));
     }
@@ -150,11 +151,18 @@ const RatecardTable: React.FC = () => {
     setAddingRow(false);
   };
 
-  // Update handleRateChange to always update local state
+  // Update handleRateChange to update the correct field
   const handleRateChange = (value: string | number, index: number) => {
     setRoles(prev =>
       prev.map((role, idx) =>
-        idx === index ? { ...role, rate: Number(value) } : role
+        idx === index
+          ? {
+              ...role,
+              ...(calculationMethod === 'man_days'
+                ? { man_day_rate: Number(value) }
+                : { rate: Number(value) }),
+            }
+          : role
       )
     );
   };
@@ -194,14 +202,18 @@ const RatecardTable: React.FC = () => {
   };
   // Separate function for updating rate if changed
   const handleRateBlur = (value: string, index: number) => {
-    if (value !== roles[index].rate) {
-      dispatch(updateProjectRateCardRoleById({
+    const isManDays = calculationMethod === 'man_days';
+    const currentValue = isManDays ? String(roles[index].man_day_rate ?? 0) : String(roles[index].rate ?? 0);
+    if (value !== currentValue) {
+      const payload = {
         id: roles[index].id!,
         body: {
-          job_title_id: roles[index].job_title_id,
-          rate: value,
-        }
-      }));
+          job_title_id: String(roles[index].job_title_id),
+          rate: String(isManDays ? roles[index].rate ?? 0 : value),
+          man_day_rate: String(isManDays ? value : roles[index].man_day_rate ?? 0),
+        },
+      };
+      dispatch(updateProjectRateCardRoleById(payload));
     }
   };
 
@@ -252,7 +264,9 @@ const RatecardTable: React.FC = () => {
             if (el) rateInputRefs.current[index] = el as unknown as HTMLInputElement;
           }}
           type="number"
-          value={roles[index]?.rate ?? 0}
+          value={calculationMethod === 'man_days'
+            ? roles[index]?.man_day_rate ?? 0
+            : roles[index]?.rate ?? 0}
           min={0}
           disabled={!hasEditPermission}
           style={{

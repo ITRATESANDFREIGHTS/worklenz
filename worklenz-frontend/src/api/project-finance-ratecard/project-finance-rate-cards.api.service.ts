@@ -43,7 +43,7 @@ export const projectRateCardApiService = {
   },
 
   // Update a single role by id
-  async updateFromId(id: string, body: { job_title_id: string; rate: string }): Promise<IServerResponse<IProjectRateCardRole>> {
+  async updateFromId(id: string, body: { job_title_id: string; rate?: string; man_day_rate?: string }): Promise<IServerResponse<IProjectRateCardRole>> {
     const response = await apiClient.put<IServerResponse<IProjectRateCardRole>>(`${rootUrl}/${id}`, body);
     return response.data;
   },

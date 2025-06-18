@@ -3,7 +3,6 @@ export enum FinanceTableColumnKeys {
   MEMBERS = 'members',
   HOURS = 'hours',
   MAN_DAYS = 'man_days',
-  ACTUAL_MAN_DAYS = 'actual_man_days',
   TOTAL_TIME_LOGGED = 'total_time_logged',
   ESTIMATED_COST = 'estimated_cost',
   COST = 'cost',
@@ -11,7 +10,6 @@ export enum FinanceTableColumnKeys {
   TOTAL_BUDGET = 'totalBudget',
   TOTAL_ACTUAL = 'totalActual',
   VARIANCE = 'variance',
-  EFFORT_VARIANCE = 'effort_variance',
 }
 
 type FinanceTableColumnsType = {
@@ -45,12 +43,6 @@ type FinanceTableColumnsType = {
     {
       key: FinanceTableColumnKeys.MAN_DAYS,
       name: 'manDaysColumn',
-      width: 100,
-      type: 'man_days',
-    },
-    {
-      key: FinanceTableColumnKeys.ACTUAL_MAN_DAYS,
-      name: 'actualManDaysColumn',
       width: 100,
       type: 'man_days',
     },
@@ -96,12 +88,6 @@ type FinanceTableColumnsType = {
       width: 120,
       type: 'currency',
     },
-    {
-      key: FinanceTableColumnKeys.EFFORT_VARIANCE,
-      name: 'effortVarianceColumn',
-      width: 120,
-      type: 'effort_variance',
-    },
   ];
 
   // Function to get columns based on calculation method
@@ -129,9 +115,7 @@ type FinanceTableColumnsType = {
       
       // Show man days columns only for man days calculation
       if ([
-        FinanceTableColumnKeys.MAN_DAYS,
-        FinanceTableColumnKeys.ACTUAL_MAN_DAYS,
-        FinanceTableColumnKeys.EFFORT_VARIANCE
+        FinanceTableColumnKeys.MAN_DAYS
       ].includes(column.key)) {
         return calculationMethod === 'man_days';
       }

@@ -81,7 +81,7 @@ export const insertProjectRateCardRole = createAsyncThunk(
 
 export const updateProjectRateCardRoleById = createAsyncThunk(
   'projectFinance/updateById',
-  async ({ id, body }: { id: string; body: { job_title_id: string; rate: string } }, { rejectWithValue }) => {
+  async ({ id, body }: { id: string; body: { job_title_id: string; rate?: string; man_day_rate?: string } }, { rejectWithValue }) => {
     try {
       const response = await projectRateCardApiService.updateFromId(id, body);
       return response.body;

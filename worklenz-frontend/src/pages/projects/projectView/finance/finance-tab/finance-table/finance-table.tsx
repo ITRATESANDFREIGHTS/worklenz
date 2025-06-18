@@ -442,7 +442,11 @@ const FinanceTable = ({
       case FinanceTableColumnKeys.HOURS:
         return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{task.estimated_hours}</Typography.Text>;
       case FinanceTableColumnKeys.MAN_DAYS:
-        return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{formatManDays(task.estimated_man_days || 0)}</Typography.Text>;
+        // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
+        const displayManDays = task.total_minutes > 0 
+          ? (task.total_minutes / 60) / (hoursPerDay || 8)
+          : (task.estimated_seconds / 3600) / (hoursPerDay || 8);
+        return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{formatManDays(displayManDays)}</Typography.Text>;
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{task.total_time_logged}</Typography.Text>;
       case FinanceTableColumnKeys.ESTIMATED_COST:
@@ -592,7 +596,11 @@ const FinanceTable = ({
           const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           totals.hours += task.estimated_seconds || 0;
-          totals.man_days += task.estimated_man_days || 0;
+          // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
+          const taskManDays = task.total_minutes > 0 
+            ? (task.total_minutes / 60) / (hoursPerDay || 8)
+            : (task.estimated_seconds / 3600) / (hoursPerDay || 8);
+          totals.man_days += taskManDays;
           totals.total_time_logged += task.total_time_logged_seconds || 0;
           totals.estimated_cost += task.estimated_cost || 0;
           totals.actual_cost_from_logs += task.actual_cost_from_logs || 0;

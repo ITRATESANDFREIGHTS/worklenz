@@ -78,10 +78,6 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         return t('columnTooltips.hours');
       case FinanceTableColumnKeys.MAN_DAYS:
         return t('columnTooltips.manDays', { hoursPerDay });
-      case FinanceTableColumnKeys.ACTUAL_MAN_DAYS:
-        return t('columnTooltips.actualManDays', { hoursPerDay });
-      case FinanceTableColumnKeys.EFFORT_VARIANCE:
-        return t('columnTooltips.effortVariance');
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return t('columnTooltips.totalTimeLogged');
       case FinanceTableColumnKeys.ESTIMATED_COST:
@@ -132,7 +128,8 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           return {
             hours: acc.hours + (task.estimated_seconds || 0),
-            manDays: acc.manDays + (task.estimated_man_days || 0),
+            // Calculate man days from total_minutes
+            manDays: acc.manDays + ((task.total_minutes || 0) / 60 / (hoursPerDay || 8)),
             cost: acc.cost + (task.actual_cost_from_logs || 0),
             fixedCost: acc.fixedCost + (task.fixed_cost || 0),
             totalBudget: acc.totalBudget + leafTotalBudget,

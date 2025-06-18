@@ -225,4 +225,62 @@ BEGIN
 END;
 $$;
 
+-- Update existing tasks to have estimated_man_days calculated from estimated_seconds
+-- Only for organizations using man_days calculation method
+UPDATE tasks 
+SET estimated_man_days = CASE 
+    WHEN t.total_minutes > 0 AND o.calculation_method = 'man_days' THEN 
+        (t.total_minutes / 60.0) / COALESCE(o.hours_per_day, 8.0)
+    ELSE 
+        COALESCE(t.estimated_man_days, 0)
+END
+FROM tasks t
+JOIN projects p ON t.project_id = p.id
+JOIN teams tm ON p.team_id = tm.id
+JOIN organizations o ON tm.organization_id = o.id
+WHERE tasks.id = t.id
+  AND (tasks.estimated_man_days IS NULL OR tasks.estimated_man_days = 0)
+  AND t.total_minutes > 0;
+
+-- Add trigger to automatically calculate estimated_man_days when total_minutes is updated
+-- Only for projects in organizations using man_days calculation method
+CREATE OR REPLACE FUNCTION update_estimated_man_days()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only update if the organization uses man_days calculation
+    IF EXISTS (
+        SELECT 1 
+        FROM projects p 
+        JOIN teams t ON p.team_id = t.id 
+        JOIN organizations o ON t.organization_id = o.id 
+        WHERE p.id = NEW.project_id 
+        AND o.calculation_method = 'man_days'
+    ) THEN
+        -- Calculate estimated_man_days from total_minutes if not explicitly set
+        IF NEW.estimated_man_days IS NULL OR NEW.estimated_man_days = 0 THEN
+            NEW.estimated_man_days := CASE 
+                WHEN NEW.total_minutes > 0 THEN 
+                    (NEW.total_minutes / 60.0) / COALESCE((
+                        SELECT o.hours_per_day 
+                        FROM projects p 
+                        JOIN teams t ON p.team_id = t.id 
+                        JOIN organizations o ON t.organization_id = o.id 
+                        WHERE p.id = NEW.project_id
+                    ), 8.0)
+                ELSE 0
+            END;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for INSERT and UPDATE
+DROP TRIGGER IF EXISTS trigger_update_estimated_man_days ON tasks;
+CREATE TRIGGER trigger_update_estimated_man_days
+    BEFORE INSERT OR UPDATE OF total_minutes ON tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_estimated_man_days();
+
 COMMIT; 

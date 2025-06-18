@@ -14,7 +14,7 @@ projectFinanceApiRouter.get(
   safeControllerFunction(ProjectfinanceController.getTaskBreakdown)
 );
 projectFinanceApiRouter.put("/task/:task_id/fixed-cost", safeControllerFunction(ProjectfinanceController.updateTaskFixedCost));
-projectFinanceApiRouter.put("/task/:task_id/estimated-man-days", safeControllerFunction(ProjectfinanceController.updateTaskEstimatedManDays));
+
 projectFinanceApiRouter.put("/project/:project_id/currency", safeControllerFunction(ProjectfinanceController.updateProjectCurrency));
 projectFinanceApiRouter.put("/project/:project_id/budget", safeControllerFunction(ProjectfinanceController.updateProjectBudget));
 projectFinanceApiRouter.put("/project/:project_id/calculation-method", safeControllerFunction(ProjectfinanceController.updateProjectCalculationMethod));
