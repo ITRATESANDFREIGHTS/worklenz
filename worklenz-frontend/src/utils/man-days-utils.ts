@@ -52,20 +52,28 @@ export const manDaysToSeconds = (manDays: number, hoursPerDay: number = 8): numb
  * Format man days for display
  * @param manDays - Number of man days
  * @param precision - Number of decimal places (default: 1)
- * @returns Formatted string
+ * @param hoursPerDay - Working hours per day (default: 8)
+ * @returns Formatted string (e.g., '2d 3h 30m')
  */
-export const formatManDays = (manDays: number, precision: number = 1): string => {
+export const formatManDays = (
+  manDays: number,
+  precision: number = 1,
+  hoursPerDay: number = 8
+): string => {
   if (manDays <= 0) return "0d";
-  
-  const rounded = Number(manDays.toFixed(precision));
-  
-  if (rounded === 1) {
-    return "1 day";
-  } else if (rounded < 1) {
-    return `${rounded}d`;
-  } else {
-    return `${rounded} days`;
-  }
+
+  const days = Math.floor(manDays);
+  const remainder = manDays - days;
+  const totalHours = remainder * hoursPerDay;
+  const hours = Math.floor(totalHours);
+  const minutes = Math.round((totalHours - hours) * 60);
+
+  let result = '';
+  if (days > 0) result += `${days}d`;
+  if (hours > 0) result += (result ? ' ' : '') + `${hours}h`;
+  if (minutes > 0) result += (result ? ' ' : '') + `${minutes}m`;
+  if (!result) result = `${manDays.toFixed(precision)}d`;
+  return result;
 };
 
 /**

@@ -203,8 +203,10 @@ const RatecardTable: React.FC = () => {
   // Separate function for updating rate if changed
   const handleRateBlur = (value: string, index: number) => {
     const isManDays = calculationMethod === 'man_days';
-    const currentValue = isManDays ? String(roles[index].man_day_rate ?? 0) : String(roles[index].rate ?? 0);
-    if (value !== currentValue) {
+    // Compare with Redux value, not local state
+    const reduxRole = rolesRedux[index];
+    const reduxValue = isManDays ? String(reduxRole?.man_day_rate ?? 0) : String(reduxRole?.rate ?? 0);
+    if (value !== reduxValue) {
       const payload = {
         id: roles[index].id!,
         body: {
@@ -238,7 +240,7 @@ const RatecardTable: React.FC = () => {
               onChange={handleSelectJobTitle}
               onBlur={() => setAddingRow(false)}
               filterOption={(input, option) =>
-                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                ((option?.children as unknown as string) || '').toLowerCase().includes(input.toLowerCase())
               }
             >
               {jobTitles
@@ -279,9 +281,9 @@ const RatecardTable: React.FC = () => {
             opacity: hasEditPermission ? 1 : 0.7,
             cursor: hasEditPermission ? 'text' : 'not-allowed'
           }}
-          onChange={hasEditPermission ? (e) => handleRateChange(e.target.value, index) : undefined}
-          onBlur={hasEditPermission ? (e) => handleRateBlur(e.target.value, index) : undefined}
-          onPressEnter={hasEditPermission ? (e) => handleRateBlur(e.target.value, index) : undefined}
+          onChange={hasEditPermission ? (e) => handleRateChange((e.target as HTMLInputElement).value, index) : undefined}
+          onBlur={hasEditPermission ? (e) => handleRateBlur((e.target as HTMLInputElement).value, index) : undefined}
+          onPressEnter={hasEditPermission ? (e) => handleRateBlur((e.target as HTMLInputElement).value, index) : undefined}
         />
       ),
     },
@@ -294,7 +296,7 @@ const RatecardTable: React.FC = () => {
             {memberscol?.map((memberId, i) => {
               const member = members.find((m) => m.id === memberId);
               return member ? (
-                <CustomAvatar key={i} avatarName={member.name} size={26} />
+                <CustomAvatar key={i} avatarName={member.name || ''} size={26} />
               ) : null;
             })}
           </Avatar.Group>

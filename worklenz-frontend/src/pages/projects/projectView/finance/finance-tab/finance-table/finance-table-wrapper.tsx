@@ -191,7 +191,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       case FinanceTableColumnKeys.MAN_DAYS:
         return (
           <Typography.Text style={{ fontSize: 18 }}>
-            {formatManDays(totals.manDays)}
+            {formatManDays(totals.manDays, 1, hoursPerDay)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.COST:

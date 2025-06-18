@@ -124,7 +124,7 @@ const FinanceTable = ({
       case FinanceTableColumnKeys.HOURS:
         return <Typography.Text>{formattedTotals.hours}</Typography.Text>;
       case FinanceTableColumnKeys.MAN_DAYS:
-        return <Typography.Text>{formatManDays(formattedTotals.man_days || 0)}</Typography.Text>;
+        return <Typography.Text>{formatManDays(formattedTotals.man_days || 0, 1, hoursPerDay)}</Typography.Text>;
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return <Typography.Text>{formattedTotals.total_time_logged}</Typography.Text>;
       case FinanceTableColumnKeys.ESTIMATED_COST:
@@ -446,7 +446,7 @@ const FinanceTable = ({
         const displayManDays = task.total_minutes > 0 
           ? (task.total_minutes / 60) / (hoursPerDay || 8)
           : (task.estimated_seconds / 3600) / (hoursPerDay || 8);
-        return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{formatManDays(displayManDays)}</Typography.Text>;
+        return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{formatManDays(displayManDays, 1, hoursPerDay)}</Typography.Text>;
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>{task.total_time_logged}</Typography.Text>;
       case FinanceTableColumnKeys.ESTIMATED_COST:
