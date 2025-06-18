@@ -65,11 +65,11 @@ export const insertProjectRateCardRoles = createAsyncThunk(
 export const insertProjectRateCardRole = createAsyncThunk(
   'projectFinance/insertOne',
   async (
-    { project_id, job_title_id, rate }: { project_id: string; job_title_id: string; rate: number },
+    { project_id, job_title_id, rate, man_day_rate }: { project_id: string; job_title_id: string; rate: number; man_day_rate?: number },
     { rejectWithValue }
   ) => {
     try {
-      const response = await projectRateCardApiService.insertOne({ project_id, job_title_id, rate });
+      const response = await projectRateCardApiService.insertOne({ project_id, job_title_id, rate, man_day_rate });
       return response.body;
     } catch (error) {
       logger.error('Insert Project RateCard Role', error);

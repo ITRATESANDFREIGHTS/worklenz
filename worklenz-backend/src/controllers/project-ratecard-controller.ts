@@ -10,18 +10,29 @@ export default class ProjectRateCardController extends WorklenzControllerBase {
   // Insert a single role for a project
   @HandleExceptions()
   public static async createOne(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
-    const { project_id, job_title_id, rate } = req.body;
+    const { project_id, job_title_id, rate, man_day_rate } = req.body;
     if (!project_id || !job_title_id || typeof rate !== "number") {
       return res.status(400).send(new ServerResponse(false, null, "Invalid input"));
     }
+    
+    // Handle both rate and man_day_rate fields
+    const columns = ["project_id", "job_title_id", "rate"];
+    const values = [project_id, job_title_id, rate];
+    
+    if (typeof man_day_rate !== "undefined") {
+      columns.push("man_day_rate");
+      values.push(man_day_rate);
+    }
+    
     const q = `
-    INSERT INTO finance_project_rate_card_roles (project_id, job_title_id, rate)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (project_id, job_title_id) DO UPDATE SET rate = EXCLUDED.rate
+    INSERT INTO finance_project_rate_card_roles (${columns.join(", ")})
+    VALUES (${values.map((_, i) => `$${i + 1}`).join(", ")})
+    ON CONFLICT (project_id, job_title_id) DO UPDATE SET 
+      rate = EXCLUDED.rate${typeof man_day_rate !== "undefined" ? ", man_day_rate = EXCLUDED.man_day_rate" : ""}
     RETURNING *,
       (SELECT name FROM job_titles jt WHERE jt.id = finance_project_rate_card_roles.job_title_id) AS jobtitle;
   `;
-    const result = await db.query(q, [project_id, job_title_id, rate]);
+    const result = await db.query(q, values);
     return res.status(200).send(new ServerResponse(true, result.rows[0]));
   }
   // Insert multiple roles for a project
@@ -31,17 +42,24 @@ export default class ProjectRateCardController extends WorklenzControllerBase {
     if (!Array.isArray(roles) || !project_id) {
       return res.status(400).send(new ServerResponse(false, null, "Invalid input"));
     }
+    
+    // Handle both rate and man_day_rate fields for each role
+    const columns = ["project_id", "job_title_id", "rate", "man_day_rate"];
     const values = roles.map((role: any) => [
       project_id,
       role.job_title_id,
-      role.rate
+      typeof role.rate !== "undefined" ? role.rate : 0,
+      typeof role.man_day_rate !== "undefined" ? role.man_day_rate : 0
     ]);
+    
     const q = `
-      INSERT INTO finance_project_rate_card_roles (project_id, job_title_id, rate)
-      VALUES ${values.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(",")}
-      ON CONFLICT (project_id, job_title_id) DO UPDATE SET rate = EXCLUDED.rate
+      INSERT INTO finance_project_rate_card_roles (${columns.join(", ")})
+      VALUES ${values.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(",")}
+      ON CONFLICT (project_id, job_title_id) DO UPDATE SET 
+        rate = EXCLUDED.rate, 
+        man_day_rate = EXCLUDED.man_day_rate
       RETURNING *,
-      (SELECT name FROM job_titles jt WHERE jt.id = finance_project_rate_card_roles.job_title_id) AS Jobtitle;
+      (SELECT name FROM job_titles jt WHERE jt.id = finance_project_rate_card_roles.job_title_id) AS jobtitle;
     `;
     const flatValues = values.flat();
     const result = await db.query(q, flatValues);

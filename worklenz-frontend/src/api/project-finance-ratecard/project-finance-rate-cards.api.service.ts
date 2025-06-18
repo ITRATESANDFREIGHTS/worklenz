@@ -11,6 +11,7 @@ export interface IProjectRateCardRole {
   job_title_id: string;
   jobtitle?: string;
   rate: number;
+  man_day_rate?: number;
   data?: object;
   roles?: IJobType[];
 }
@@ -22,10 +23,10 @@ export const projectRateCardApiService = {
     return response.data;
   },
   // Insert a single role for a project
-  async insertOne({ project_id, job_title_id, rate }: { project_id: string; job_title_id: string; rate: number }): Promise<IServerResponse<IProjectRateCardRole>> {
+  async insertOne({ project_id, job_title_id, rate, man_day_rate }: { project_id: string; job_title_id: string; rate: number; man_day_rate?: number }): Promise<IServerResponse<IProjectRateCardRole>> {
     const response = await apiClient.post<IServerResponse<IProjectRateCardRole>>(
       `${rootUrl}/create-project-rate-card-role`,
-      { project_id, job_title_id, rate }
+      { project_id, job_title_id, rate, man_day_rate }
     );
     return response.data;
   },

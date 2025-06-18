@@ -138,8 +138,16 @@ const RatecardTable: React.FC = () => {
     const jobTitle = jobTitles.find((jt) => jt.id === jobTitleId);
     if (!jobTitle || !projectId) return;
     if (roles.some((r) => r.job_title_id === jobTitleId)) return;
+    
+    // Set the appropriate rate based on calculation method
+    const isManDays = calculationMethod === 'man_days';
     const resultAction = await dispatch(
-      insertProjectRateCardRole({ project_id: projectId, job_title_id: jobTitleId, rate: 0 })
+      insertProjectRateCardRole({ 
+        project_id: projectId, 
+        job_title_id: jobTitleId, 
+        rate: isManDays ? 0 : 0, // Set rate to 0 for both modes initially
+        man_day_rate: isManDays ? 0 : undefined // Set man_day_rate to 0 for man days mode
+      })
     );
 
     if (insertProjectRateCardRole.fulfilled.match(resultAction)) {
