@@ -9,6 +9,7 @@ import { insertProjectRateCardRoles } from '../project-finance-slice';
 import { useParams } from 'react-router-dom';
 import { adminCenterApiService } from '@/api/admin-center/admin-center.api.service';
 import { IOrganization } from '@/types/admin-center/admin-center.types';
+import { hourlyRateToManDayRate } from '@/utils/man-days-utils';
 
 const ImportRatecardsDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -130,16 +131,42 @@ const ImportRatecardsDrawer: React.FC = () => {
                     return;
                   }
                   if (drawerRatecard?.jobRolesList?.length) {
+                    const isProjectManDays = calculationMethod === 'man_days';
+                    const hoursPerDay = organization?.hours_per_day || 8;
                     dispatch(
                       insertProjectRateCardRoles({
                         project_id: projectId,
                         roles: drawerRatecard.jobRolesList
                           .filter((role) => typeof role.rate !== 'undefined' && role.job_title_id)
-                          .map((role) => ({
-                            ...role,
-                            job_title_id: role.job_title_id!,
-                            rate: Number(role.rate),
-                          })),
+                          .map((role) => {
+                            if (isProjectManDays) {
+                              // If the imported rate card is hourly, convert rate to man_day_rate
+                              if ((role.man_day_rate === undefined || role.man_day_rate === 0) && role.rate) {
+                                return {
+                                  ...role,
+                                  job_title_id: role.job_title_id!,
+                                  man_day_rate: hourlyRateToManDayRate(Number(role.rate), hoursPerDay),
+                                  rate: 0,
+                                };
+                              } else {
+                                // Already has man_day_rate
+                                return {
+                                  ...role,
+                                  job_title_id: role.job_title_id!,
+                                  man_day_rate: Number(role.man_day_rate) || 0,
+                                  rate: 0,
+                                };
+                              }
+                            } else {
+                              // Project is hourly, import as is
+                              return {
+                                ...role,
+                                job_title_id: role.job_title_id!,
+                                rate: Number(role.rate) || 0,
+                                man_day_rate: Number(role.man_day_rate) || 0,
+                              };
+                            }
+                          }),
                       })
                     );
                   }
