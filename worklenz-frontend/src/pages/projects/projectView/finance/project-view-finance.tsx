@@ -56,6 +56,7 @@ const ProjectViewFinance = () => {
       return {
         totalEstimatedHours: 0,
         totalFixedCost: 0,
+        totalTimeBasedCost: 0,
         totalBudget: manualBudget,
         totalActualCost: 0,
         totalVariance: manualBudget,
@@ -70,25 +71,20 @@ const ProjectViewFinance = () => {
       let totals = {
         totalEstimatedHours: 0,
         totalFixedCost: 0,
-        totalActualCost: 0
+        totalTimeBasedCost: 0,
       };
 
       for (const task of tasks) {
-        // For parent tasks with subtasks, only count the aggregated values (no double counting)
-        // For leaf tasks, count their individual values
         if (task.sub_tasks && task.sub_tasks.length > 0) {
-          // Parent task - use its aggregated values which already include subtask totals
-          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600; // Convert seconds to hours
+          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600;
           totals.totalFixedCost += task.fixed_cost || 0;
-          totals.totalActualCost += task.total_actual || 0;
+          totals.totalTimeBasedCost += task.actual_cost_from_logs || 0;
         } else {
-          // Leaf task - use its individual values
-          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600; // Convert seconds to hours
+          totals.totalEstimatedHours += (task.estimated_seconds || 0) / 3600;
           totals.totalFixedCost += task.fixed_cost || 0;
-          totals.totalActualCost += task.total_actual || 0;
+          totals.totalTimeBasedCost += task.actual_cost_from_logs || 0;
         }
       }
-
       return totals;
     };
 
@@ -97,31 +93,29 @@ const ProjectViewFinance = () => {
       return {
         totalEstimatedHours: acc.totalEstimatedHours + groupTotals.totalEstimatedHours,
         totalFixedCost: acc.totalFixedCost + groupTotals.totalFixedCost,
-        totalActualCost: acc.totalActualCost + groupTotals.totalActualCost
+        totalTimeBasedCost: acc.totalTimeBasedCost + groupTotals.totalTimeBasedCost,
       };
     }, {
       totalEstimatedHours: 0,
       totalFixedCost: 0,
-      totalActualCost: 0
+      totalTimeBasedCost: 0,
     });
 
-    // Use manual budget for all calculations
     const manualBudget = project?.budget || 0;
     const hasManualBudget = !!(project?.budget && project.budget > 0);
-    
-    // Manual budget should include fixed costs in calculations
-    const totalActualWithFixed = totals.totalActualCost + totals.totalFixedCost;
-    const totalVariance = manualBudget - totalActualWithFixed;
 
+    const totalActualCost = totals.totalTimeBasedCost + totals.totalFixedCost;
+    const totalVariance = manualBudget - totalActualCost;
     const budgetUtilization = manualBudget > 0 
-      ? (totalActualWithFixed / manualBudget) * 100 
+      ? (totalActualCost / manualBudget) * 100 
       : 0;
 
     return {
       totalEstimatedHours: totals.totalEstimatedHours,
       totalFixedCost: totals.totalFixedCost,
+      totalTimeBasedCost: totals.totalTimeBasedCost,
       totalBudget: manualBudget,
-      totalActualCost: totalActualWithFixed,
+      totalActualCost,
       totalVariance,
       budgetUtilization,
       manualBudget,
@@ -573,7 +567,7 @@ const ProjectViewFinance = () => {
                 <Tooltip title={t('budgetOverviewTooltips.timeBasedCost')}>
                   <Statistic
                     title={t('budgetStatistics.timeBasedCost')}
-                    value={budgetStatistics.totalActualCost - budgetStatistics.totalFixedCost}
+                    value={budgetStatistics.totalTimeBasedCost}
                     precision={2}
                     prefix={projectCurrency.toUpperCase()}
                     valueStyle={{ color: '#13c2c2', fontSize: '16px' }}
