@@ -145,8 +145,8 @@ const RatecardTable: React.FC = () => {
       insertProjectRateCardRole({ 
         project_id: projectId, 
         job_title_id: jobTitleId, 
-        rate: isManDays ? 0 : 0, // Set rate to 0 for both modes initially
-        man_day_rate: isManDays ? 0 : undefined // Set man_day_rate to 0 for man days mode
+        rate: 0, // Always initialize rate as 0
+        man_day_rate: isManDays ? 0 : undefined // Only set man_day_rate for man_days mode
       })
     );
 
@@ -219,8 +219,16 @@ const RatecardTable: React.FC = () => {
         id: roles[index].id!,
         body: {
           job_title_id: String(roles[index].job_title_id),
-          rate: String(isManDays ? roles[index].rate ?? 0 : value),
-          man_day_rate: String(isManDays ? value : roles[index].man_day_rate ?? 0),
+          // Only update the field that corresponds to the current calculation method
+          ...(isManDays 
+            ? { 
+                rate: String(reduxRole?.rate ?? 0), // Keep existing rate value
+                man_day_rate: String(value) // Update man_day_rate with new value
+              } 
+            : { 
+                rate: String(value), // Update rate with new value
+                man_day_rate: String(reduxRole?.man_day_rate ?? 0) // Keep existing man_day_rate value
+              }),
         },
       };
       dispatch(updateProjectRateCardRoleById(payload));

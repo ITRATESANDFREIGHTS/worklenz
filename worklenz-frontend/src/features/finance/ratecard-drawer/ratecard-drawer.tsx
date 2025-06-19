@@ -278,13 +278,6 @@ const RatecardDrawer = ({
         setShowUnsavedAlert(false);
       } catch (error) {
         console.error('Failed to update rate card', error);
-      } finally {
-        setRoles([]);
-        setName('Untitled Rate Card');
-        setCurrency(DEFAULT_CURRENCY);
-        setInitialRoles([]);
-        setInitialName('Untitled Rate Card');
-        setInitialCurrency(DEFAULT_CURRENCY);
       }
     }
   };

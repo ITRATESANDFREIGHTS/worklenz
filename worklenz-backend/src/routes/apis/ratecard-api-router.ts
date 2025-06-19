@@ -11,38 +11,10 @@ import ratecardBodyValidator from "../../middlewares/validators/ratecard-body-va
 
 const ratecardApiRouter = express.Router();
 
-ratecardApiRouter.post(
-  "/",
-  projectManagerValidator,
-  ratecardBodyValidator,
-  safeControllerFunction(RateCardController.create)
-);
-
-ratecardApiRouter.get(
-  "/",
-  safeControllerFunction(RateCardController.get)
-);
-
-ratecardApiRouter.get(
-  "/:id",
-  teamOwnerOrAdminValidator,
-  idParamValidator,
-  safeControllerFunction(RateCardController.getById)
-);
-
-ratecardApiRouter.put(
-  "/:id",
-  teamOwnerOrAdminValidator,
-  ratecardBodyValidator,
-  idParamValidator,
-  safeControllerFunction(RateCardController.update)
-);
-
-ratecardApiRouter.delete(
-  "/:id",
-  teamOwnerOrAdminValidator,
-  idParamValidator,
-  safeControllerFunction(RateCardController.deleteById)
-);
+ratecardApiRouter.post( "/", projectManagerValidator, ratecardBodyValidator, safeControllerFunction(RateCardController.create));
+ratecardApiRouter.get( "/", safeControllerFunction(RateCardController.get));
+ratecardApiRouter.get( "/:id", teamOwnerOrAdminValidator, idParamValidator, safeControllerFunction(RateCardController.getById));
+ratecardApiRouter.put( "/:id", teamOwnerOrAdminValidator, ratecardBodyValidator, idParamValidator, safeControllerFunction(RateCardController.update));
+ratecardApiRouter.delete( "/:id", teamOwnerOrAdminValidator, idParamValidator, safeControllerFunction(RateCardController.deleteById));
 
 export default ratecardApiRouter;

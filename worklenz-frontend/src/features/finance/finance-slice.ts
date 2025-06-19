@@ -182,6 +182,58 @@ const financeSlice = createSlice({
       .addCase(fetchRateCardById.rejected, (state) => {
         state.isFinanceDrawerloading = false;
         state.drawerRatecard = null;
+      })
+      // Create rate card
+      .addCase(createRateCard.pending, (state) => {
+        state.isFinanceDrawerloading = true;
+      })
+      .addCase(createRateCard.fulfilled, (state, action) => {
+        state.isFinanceDrawerloading = false;
+        if (state.ratecardsList) {
+          state.ratecardsList.push(action.payload);
+        } else {
+          state.ratecardsList = [action.payload];
+        }
+      })
+      .addCase(createRateCard.rejected, (state) => {
+        state.isFinanceDrawerloading = false;
+      })
+      // Update rate card
+      .addCase(updateRateCard.pending, (state) => {
+        state.isFinanceDrawerloading = true;
+      })
+      .addCase(updateRateCard.fulfilled, (state, action) => {
+        state.isFinanceDrawerloading = false;
+        // Update the drawerRatecard with the new data
+        state.drawerRatecard = action.payload;
+        // Update the rate card in the list if it exists
+        if (state.ratecardsList && action.payload?.id) {
+          const index = state.ratecardsList.findIndex(rc => rc.id === action.payload.id);
+          if (index !== -1) {
+            state.ratecardsList[index] = action.payload;
+          }
+        }
+      })
+      .addCase(updateRateCard.rejected, (state) => {
+        state.isFinanceDrawerloading = false;
+      })
+      // Delete rate card
+      .addCase(deleteRateCard.pending, (state) => {
+        state.isFinanceDrawerloading = true;
+      })
+      .addCase(deleteRateCard.fulfilled, (state, action) => {
+        state.isFinanceDrawerloading = false;
+        // Remove the deleted rate card from the list
+        if (state.ratecardsList) {
+          state.ratecardsList = state.ratecardsList.filter(rc => rc.id !== action.payload);
+        }
+        // Clear drawer rate card if it was the deleted one
+        if (state.drawerRatecard?.id === action.payload) {
+          state.drawerRatecard = null;
+        }
+      })
+      .addCase(deleteRateCard.rejected, (state) => {
+        state.isFinanceDrawerloading = false;
       });
   },
 });

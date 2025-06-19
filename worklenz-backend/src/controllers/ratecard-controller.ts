@@ -67,6 +67,7 @@ export default class RateCardController extends WorklenzControllerBase {
       rcr.job_title_id,
       jt.name AS jobTitle,
       rcr.rate,
+      rcr.man_day_rate,
       rcr.rate_card_id
     FROM finance_rate_card_roles rcr
     LEFT JOIN job_titles jt ON rcr.job_title_id = jt.id
@@ -113,9 +114,9 @@ export default class RateCardController extends WorklenzControllerBase {
       for (const role of req.body.jobRolesList) {
         if (role.job_title_id) {
           await db.query(
-            `INSERT INTO finance_rate_card_roles (rate_card_id, job_title_id, rate)
-           VALUES ($1, $2, $3);`,
-            [req.params.id, role.job_title_id, role.rate ?? 0]
+            `INSERT INTO finance_rate_card_roles (rate_card_id, job_title_id, rate, man_day_rate)
+           VALUES ($1, $2, $3, $4);`,
+            [req.params.id, role.job_title_id, role.rate ?? 0, role.man_day_rate ?? 0]
           );
         }
       }

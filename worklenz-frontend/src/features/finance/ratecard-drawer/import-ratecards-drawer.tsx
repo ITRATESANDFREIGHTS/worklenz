@@ -10,36 +10,29 @@ import { useParams } from 'react-router-dom';
 import { adminCenterApiService } from '@/api/admin-center/admin-center.api.service';
 import { IOrganization } from '@/types/admin-center/admin-center.types';
 import { hourlyRateToManDayRate } from '@/utils/man-days-utils';
+import { JobRoleType } from '@/types/project/ratecard.types';
 
 const ImportRatecardsDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const { projectId } = useParams();
   const { t } = useTranslation('project-view-finance');
 
-  const drawerRatecard = useAppSelector(
-    (state) => state.financeReducer.drawerRatecard
-  );
-  const ratecardsList = useAppSelector(
-    (state) => state.financeReducer.ratecardsList || []
-  );
-  const isDrawerOpen = useAppSelector(
-    (state) => state.financeReducer.isImportRatecardsDrawerOpen
-  );
+  const drawerRatecard = useAppSelector(state => state.financeReducer.drawerRatecard);
+  const ratecardsList = useAppSelector(state => state.financeReducer.ratecardsList || []);
+  const isDrawerOpen = useAppSelector(state => state.financeReducer.isImportRatecardsDrawerOpen);
   // Get project currency from project finances, fallback to finance reducer currency
-  const projectCurrency = useAppSelector((state) => state.projectFinances.project?.currency);
-  const fallbackCurrency = useAppSelector((state) => state.financeReducer.currency);
+  const projectCurrency = useAppSelector(state => state.projectFinances.project?.currency);
+  const fallbackCurrency = useAppSelector(state => state.financeReducer.currency);
   const currency = (projectCurrency || fallbackCurrency || 'USD').toUpperCase();
 
-  const rolesRedux = useAppSelector((state) => state.projectFinanceRateCard.rateCardRoles) || [];
+  const rolesRedux = useAppSelector(state => state.projectFinanceRateCard.rateCardRoles) || [];
 
   // Loading states
-  const isRatecardsLoading = useAppSelector(
-    (state) => state.financeReducer.isRatecardsLoading
-  );
+  const isRatecardsLoading = useAppSelector(state => state.financeReducer.isRatecardsLoading);
 
   const [selectedRatecardId, setSelectedRatecardId] = useState<string | null>(null);
   const [organization, setOrganization] = useState<IOrganization | null>(null);
-  
+
   // Get calculation method from organization
   const calculationMethod = organization?.calculation_method || 'hourly';
 
@@ -69,13 +62,15 @@ const ImportRatecardsDrawer: React.FC = () => {
 
   useEffect(() => {
     if (isDrawerOpen) {
-      dispatch(fetchRateCards({
-        index: 1,
-        size: 1000,
-        field: 'name',
-        order: 'asc',
-        search: '',
-      }));
+      dispatch(
+        fetchRateCards({
+          index: 1,
+          size: 1000,
+          field: 'name',
+          order: 'asc',
+          search: '',
+        })
+      );
     }
   }, [isDrawerOpen, dispatch]);
 
@@ -90,15 +85,17 @@ const ImportRatecardsDrawer: React.FC = () => {
       title: t('jobTitleColumn'),
       dataIndex: 'jobtitle',
       render: (text: string) => (
-        <Typography.Text className="group-hover:text-[#1890ff]">
-          {text}
-        </Typography.Text>
+        <Typography.Text className="group-hover:text-[#1890ff]">{text}</Typography.Text>
       ),
     },
     {
       title: `${calculationMethod === 'man_days' ? t('ratePerManDayColumn') : t('ratePerHourColumn')} (${currency})`,
       dataIndex: 'rate',
-      render: (text: number) => <Typography.Text>{text}</Typography.Text>,
+      render: (_: any, record: JobRoleType) => (
+        <Typography.Text>
+          {calculationMethod === 'man_days' ? record.man_day_rate : record.rate}
+        </Typography.Text>
+      ),
     },
   ];
 
@@ -115,7 +112,10 @@ const ImportRatecardsDrawer: React.FC = () => {
           {rolesRedux.length !== 0 ? (
             <div style={{ textAlign: 'right' }}>
               <Alert
-                message={t('alreadyImportedRateCardMessage') || 'A rate card has already been imported. Clear all imported rate cards to add a new one.'}
+                message={
+                  t('alreadyImportedRateCardMessage') ||
+                  'A rate card has already been imported. Clear all imported rate cards to add a new one.'
+                }
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
@@ -137,15 +137,21 @@ const ImportRatecardsDrawer: React.FC = () => {
                       insertProjectRateCardRoles({
                         project_id: projectId,
                         roles: drawerRatecard.jobRolesList
-                          .filter((role) => typeof role.rate !== 'undefined' && role.job_title_id)
-                          .map((role) => {
+                          .filter(role => typeof role.rate !== 'undefined' && role.job_title_id)
+                          .map(role => {
                             if (isProjectManDays) {
                               // If the imported rate card is hourly, convert rate to man_day_rate
-                              if ((role.man_day_rate === undefined || role.man_day_rate === 0) && role.rate) {
+                              if (
+                                (role.man_day_rate === undefined || role.man_day_rate === 0) &&
+                                role.rate
+                              ) {
                                 return {
                                   ...role,
                                   job_title_id: role.job_title_id!,
-                                  man_day_rate: hourlyRateToManDayRate(Number(role.rate), hoursPerDay),
+                                  man_day_rate: hourlyRateToManDayRate(
+                                    Number(role.rate),
+                                    hoursPerDay
+                                  ),
                                   rate: 0,
                                 };
                               } else {
@@ -198,10 +204,8 @@ const ImportRatecardsDrawer: React.FC = () => {
             }
             onClick={({ key }) => setSelectedRatecardId(key)}
           >
-            {ratecardsList.map((ratecard) => (
-              <Menu.Item key={ratecard.id}>
-                {ratecard.name}
-              </Menu.Item>
+            {ratecardsList.map(ratecard => (
+              <Menu.Item key={ratecard.id}>{ratecard.name}</Menu.Item>
             ))}
           </Menu>
         </Spin>
@@ -211,7 +215,7 @@ const ImportRatecardsDrawer: React.FC = () => {
           style={{ flex: 1 }}
           dataSource={drawerRatecard?.jobRolesList || []}
           columns={columns}
-          rowKey={(record) => record.job_title_id || record.id || Math.random().toString()}
+          rowKey={record => record.job_title_id || record.id || Math.random().toString()}
           onRow={() => ({
             className: 'group',
             style: { cursor: 'pointer' },
