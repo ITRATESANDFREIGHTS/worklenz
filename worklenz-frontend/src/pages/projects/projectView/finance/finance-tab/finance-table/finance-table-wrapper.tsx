@@ -131,7 +131,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
             };
           } else {
             // Leaf task - calculate values from individual task properties
-            const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+            const leafTotalActual = task.actual_cost_from_logs || 0;
             const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
             return {
               hours: acc.hours + (task.estimated_seconds || 0),

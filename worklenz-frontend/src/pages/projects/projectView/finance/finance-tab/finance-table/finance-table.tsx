@@ -572,8 +572,7 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
         );
       case FinanceTableColumnKeys.VARIANCE:
         const taskTotalBudgetForVariance = (task.estimated_cost || 0) + (task.fixed_cost || 0);
-        const taskTotalActualForVariance =
-          (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+        const taskTotalActualForVariance = task.actual_cost_from_logs || 0;
         const taskVariance = taskTotalActualForVariance - taskTotalBudgetForVariance;
         return (
           <Typography.Text
@@ -598,7 +597,7 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_ACTUAL:
-        const taskTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+        const taskTotalActual = task.actual_cost_from_logs || 0;
         return (
           <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>
             {formatNumber(taskTotalActual)}
@@ -673,7 +672,7 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           totals.variance += subtaskTotals.variance;
         } else {
           // Leaf task or parent task without loaded subtasks - use its values directly
-          const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+          const leafTotalActual = task.actual_cost_from_logs || 0;
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           totals.hours += task.estimated_seconds || 0;
           // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
