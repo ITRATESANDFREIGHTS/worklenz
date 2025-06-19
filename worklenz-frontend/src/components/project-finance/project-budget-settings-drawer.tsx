@@ -92,7 +92,7 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
 
       // Update currency if changed
       if (values.currency !== financeProject?.currency) {
-        await projectFinanceApiService.updateProjectCurrency(projectId, values.currency);
+        await projectFinanceApiService.updateProjectCurrency(projectId, values.currency.toUpperCase());
         dispatch(updateProjectCurrency(values.currency));
         dispatch(updateProjectFinanceCurrency(values.currency));
       }
