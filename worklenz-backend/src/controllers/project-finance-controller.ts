@@ -254,12 +254,35 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           -- For parent tasks, sum values from descendants only (exclude parent task itself)
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_seconds)
+              -- For parent tasks with children, sum only LEAF tasks (tasks without children)
+              SELECT COALESCE(SUM(sub_tc.estimated_seconds), 0)
               FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              WHERE sub_tc.root_id = tc.id 
+                AND sub_tc.id != tc.id
+                AND NOT EXISTS (
+                  SELECT 1 FROM task_costs child_tc 
+                  WHERE child_tc.parent_task_id = sub_tc.id 
+                    AND child_tc.root_id = tc.id
+                )
             )
             ELSE tc.estimated_seconds
           END as estimated_seconds,
+          -- Add total_minutes aggregation for recursive man days calculation
+          CASE 
+            WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
+              -- For parent tasks with children, sum only LEAF tasks (tasks without children)
+              SELECT COALESCE(SUM(sub_tc.total_minutes), 0)
+              FROM task_costs sub_tc 
+              WHERE sub_tc.root_id = tc.id 
+                AND sub_tc.id != tc.id
+                AND NOT EXISTS (
+                  SELECT 1 FROM task_costs child_tc 
+                  WHERE child_tc.parent_task_id = sub_tc.id 
+                    AND child_tc.root_id = tc.id
+                )
+            )
+            ELSE tc.total_minutes
+          END as total_minutes,
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
               SELECT SUM(sub_tc.total_time_logged_seconds)

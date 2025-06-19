@@ -490,14 +490,15 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           </Typography.Text>
         );
       case FinanceTableColumnKeys.MAN_DAYS:
-        // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
-        const displayManDays =
+        // Backend now provides correct recursive aggregation for parent tasks
+        const taskManDays =
           task.total_minutes > 0
             ? task.total_minutes / 60 / (hoursPerDay || 8)
             : task.estimated_seconds / 3600 / (hoursPerDay || 8);
+        
         return (
           <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>
-            {formatManDays(displayManDays, 1, hoursPerDay)}
+            {formatManDays(taskManDays, 1, hoursPerDay)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
@@ -641,10 +642,9 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
     return flattened;
   }, [tasks, selectedTask, editingFixedCostValue, hasEditPermission, themeMode, hoveredTaskId]);
 
-  // Calculate totals for the current table
-  // Optimized calculation that avoids double counting in nested hierarchies
+  // Calculate totals for the current table - backend provides correct aggregated values
   const totals = useMemo(() => {
-    const calculateTaskTotalsRecursive = (taskList: IProjectFinanceTask[]): any => {
+    const calculateTaskTotals = (taskList: IProjectFinanceTask[]): any => {
       let totals = {
         hours: 0,
         man_days: 0,
@@ -659,8 +659,8 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
 
       for (const task of taskList) {
         if (task.sub_tasks && task.sub_tasks.length > 0) {
-          // Parent task with loaded subtasks - only use subtasks values (no parent's own values)
-          const subtaskTotals = calculateTaskTotalsRecursive(task.sub_tasks);
+          // Parent task with loaded subtasks - only count subtasks recursively
+          const subtaskTotals = calculateTaskTotals(task.sub_tasks);
           totals.hours += subtaskTotals.hours;
           totals.man_days += subtaskTotals.man_days;
           totals.total_time_logged += subtaskTotals.total_time_logged;
@@ -671,11 +671,11 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           totals.total_actual += subtaskTotals.total_actual;
           totals.variance += subtaskTotals.variance;
         } else {
-          // Leaf task or parent task without loaded subtasks - use its values directly
+          // Leaf task or parent task without loaded subtasks - use backend aggregated values
           const leafTotalActual = task.actual_cost_from_logs || 0;
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           totals.hours += task.estimated_seconds || 0;
-          // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
+          // Use same calculation as individual task display - backend provides correct values
           const taskManDays =
             task.total_minutes > 0
               ? task.total_minutes / 60 / (hoursPerDay || 8)
@@ -694,7 +694,7 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
       return totals;
     };
 
-    return calculateTaskTotalsRecursive(tasks);
+    return calculateTaskTotals(tasks);
   }, [tasks, hoursPerDay]);
 
   // Format the totals for display
