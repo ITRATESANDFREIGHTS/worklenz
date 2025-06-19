@@ -615,7 +615,7 @@ const FinanceTable = ({
     };
     
     return calculateTaskTotalsRecursive(tasks);
-  }, [tasks]);
+  }, [tasks, hoursPerDay]);
   
   // Format the totals for display
   const formattedTotals = useMemo(() => ({

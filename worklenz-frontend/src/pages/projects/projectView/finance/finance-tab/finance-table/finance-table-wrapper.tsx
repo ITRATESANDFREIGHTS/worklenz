@@ -128,8 +128,12 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
           const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
           return {
             hours: acc.hours + (task.estimated_seconds || 0),
-            // Calculate man days from total_minutes
-            manDays: acc.manDays + ((task.total_minutes || 0) / 60 / (hoursPerDay || 8)),
+            // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
+            manDays: acc.manDays + (
+              task.total_minutes > 0
+                ? (task.total_minutes / 60) / (hoursPerDay || 8)
+                : (task.estimated_seconds / 3600) / (hoursPerDay || 8)
+            ),
             cost: acc.cost + (task.actual_cost_from_logs || 0),
             fixedCost: acc.fixedCost + (task.fixed_cost || 0),
             totalBudget: acc.totalBudget + leafTotalBudget,
@@ -152,7 +156,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       });
     };
 
-    return taskGroups.reduce((acc, table: IProjectFinanceGroup) => {
+    return activeTablesList.reduce((acc, table: IProjectFinanceGroup) => {
       const groupTotals = calculateTaskTotalsRecursively(table.tasks);
       return {
         hours: acc.hours + groupTotals.hours,
@@ -176,9 +180,9 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       total_time_logged: 0,
       estimated_cost: 0
     });
-  }, [taskGroups]);
+  }, [activeTablesList, hoursPerDay]);
 
-
+  console.log('totals', totals);
 
   const renderFinancialTableHeaderContent = (columnKey: FinanceTableColumnKeys) => {
     switch (columnKey) {
