@@ -29,8 +29,8 @@ import {
 } from '@ant-design/icons';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import { updateProjectFinanceCurrency } from '@/features/projects/finance/project-finance.slice';
-import { updateProjectCurrency } from '@/features/project/project.slice';
+import { updateProjectFinanceCurrency, fetchProjectFinancesSilent } from '@/features/projects/finance/project-finance.slice';
+import { updateProjectCurrency, getProject } from '@/features/project/project.slice';
 import { projectFinanceApiService } from '@/api/project-finance-ratecard/project-finance.api.service';
 import { CURRENCY_OPTIONS } from '@/shared/constants/currencies';
 
@@ -55,8 +55,10 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get project data from Redux
-  const { financeProject } = useAppSelector((state) => state.projectFinances);
+  const financeProject = useAppSelector((state) => state.projectFinances.project);
   const { project } = useAppSelector((state) => state.projectReducer);
+  const activeGroup = useAppSelector(state => state.projectFinances.activeGroup);
+  const billableFilter = useAppSelector(state => state.projectFinances.billableFilter);
 
   // Form initial values
   const initialValues = {
@@ -97,6 +99,18 @@ const ProjectBudgetSettingsDrawer: React.FC<ProjectBudgetSettingsDrawerProps> = 
 
       message.success('Project settings updated successfully');
       setHasChanges(false);
+
+      // Reload project finances after save
+      dispatch(fetchProjectFinancesSilent({
+        projectId,
+        groupBy: activeGroup,
+        billableFilter,
+        resetExpansions: true
+      }));
+
+      // Also refresh the main project data to update budget statistics
+      dispatch(getProject(projectId));
+
       onClose();
     } catch (error) {
       console.error('Failed to update project settings:', error);

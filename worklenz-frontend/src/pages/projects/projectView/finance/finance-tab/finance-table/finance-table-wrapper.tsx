@@ -5,8 +5,11 @@ import { useAppSelector } from '@/hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { openFinanceDrawer } from '@/features/finance/finance-slice';
-import { financeTableColumns, FinanceTableColumnKeys, getFinanceTableColumns } from '@/lib/project/project-view-finance-table-columns';
-import { secondsToManDays, formatManDays } from '@/utils/man-days-utils';
+import {
+  FinanceTableColumnKeys,
+  getFinanceTableColumns,
+} from '@/lib/project/project-view-finance-table-columns';
+import { formatManDays } from '@/utils/man-days-utils';
 import FinanceTable from './finance-table';
 import FinanceDrawer from '@/features/finance/finance-drawer/finance-drawer';
 import { IProjectFinanceGroup, IProjectFinanceTask } from '@/types/project/project-finance.types';
@@ -19,17 +22,17 @@ interface FinanceTableWrapperProps {
 
 // Utility function to format seconds to time string
 const formatSecondsToTimeString = (totalSeconds: number): string => {
-  if (!totalSeconds || totalSeconds === 0) return "0s";
-  
+  if (!totalSeconds || totalSeconds === 0) return '0s';
+
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  
+
   const parts = [];
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}m`);
   if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
-  
+
   return parts.join(' ');
 };
 
@@ -57,19 +60,22 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
     };
   }, []);
 
-
-
   const themeMode = useAppSelector(state => state.themeReducer.mode);
-  const currency = useAppSelector(state => state.projectFinances.project?.currency || "").toUpperCase();
+  const currency = useAppSelector(
+    state => state.projectFinances.project?.currency || ''
+  ).toUpperCase();
   const taskGroups = useAppSelector(state => state.projectFinances.taskGroups);
   const financeProject = useAppSelector(state => state.projectFinances.project);
-  
+
   // Get calculation method and hours per day from project
   const calculationMethod = financeProject?.calculation_method || 'hourly';
   const hoursPerDay = financeProject?.hours_per_day || 8;
-  
+
   // Get dynamic columns based on calculation method
-  const activeColumns = useMemo(() => getFinanceTableColumns(calculationMethod), [calculationMethod]);
+  const activeColumns = useMemo(
+    () => getFinanceTableColumns(calculationMethod),
+    [calculationMethod]
+  );
 
   // Function to get tooltip text for column headers
   const getColumnTooltip = (columnKey: FinanceTableColumnKeys): string => {
@@ -81,7 +87,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
         return t('columnTooltips.totalTimeLogged');
       case FinanceTableColumnKeys.ESTIMATED_COST:
-        return calculationMethod === 'man_days' 
+        return calculationMethod === 'man_days'
           ? t('columnTooltips.estimatedCostManDays')
           : t('columnTooltips.estimatedCostHourly');
       case FinanceTableColumnKeys.COST:
@@ -105,45 +111,76 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
   const totals = useMemo(() => {
     // Recursive function to calculate totals from task hierarchy without double counting
     const calculateTaskTotalsRecursively = (tasks: IProjectFinanceTask[]): any => {
-      return tasks.reduce((acc, task) => {
-        // For parent tasks with subtasks, aggregate values from subtasks only
-        // For leaf tasks, use their individual values
-        if (task.sub_tasks && task.sub_tasks.length > 0) {
-          // Parent task - only use aggregated values from subtasks (no parent's own values)
-          const subtaskTotals = calculateTaskTotalsRecursively(task.sub_tasks);
-          return {
-            hours: acc.hours + subtaskTotals.hours,
-            manDays: acc.manDays + subtaskTotals.manDays,
-            cost: acc.cost + subtaskTotals.cost,
-            fixedCost: acc.fixedCost + subtaskTotals.fixedCost,
-            totalBudget: acc.totalBudget + subtaskTotals.totalBudget,
-            totalActual: acc.totalActual + subtaskTotals.totalActual,
-            variance: acc.variance + subtaskTotals.variance,
-            total_time_logged: acc.total_time_logged + subtaskTotals.total_time_logged,
-            estimated_cost: acc.estimated_cost + subtaskTotals.estimated_cost
-          };
-        } else {
-          // Leaf task - calculate values from individual task properties
-          const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
-          const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
-          return {
-            hours: acc.hours + (task.estimated_seconds || 0),
-            // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
-            manDays: acc.manDays + (
-              task.total_minutes > 0
-                ? (task.total_minutes / 60) / (hoursPerDay || 8)
-                : (task.estimated_seconds / 3600) / (hoursPerDay || 8)
-            ),
-            cost: acc.cost + (task.actual_cost_from_logs || 0),
-            fixedCost: acc.fixedCost + (task.fixed_cost || 0),
-            totalBudget: acc.totalBudget + leafTotalBudget,
-            totalActual: acc.totalActual + leafTotalActual,
-            variance: acc.variance + (leafTotalActual - leafTotalBudget),
-            total_time_logged: acc.total_time_logged + (task.total_time_logged_seconds || 0),
-            estimated_cost: acc.estimated_cost + (task.estimated_cost || 0)
-          };
+      return tasks.reduce(
+        (acc, task) => {
+          // For parent tasks with subtasks, aggregate values from subtasks only
+          // For leaf tasks, use their individual values
+          if (task.sub_tasks && task.sub_tasks.length > 0) {
+            // Parent task - only use aggregated values from subtasks (no parent's own values)
+            const subtaskTotals = calculateTaskTotalsRecursively(task.sub_tasks);
+            return {
+              hours: acc.hours + subtaskTotals.hours,
+              manDays: acc.manDays + subtaskTotals.manDays,
+              cost: acc.cost + subtaskTotals.cost,
+              fixedCost: acc.fixedCost + subtaskTotals.fixedCost,
+              totalBudget: acc.totalBudget + subtaskTotals.totalBudget,
+              totalActual: acc.totalActual + subtaskTotals.totalActual,
+              variance: acc.variance + subtaskTotals.variance,
+              total_time_logged: acc.total_time_logged + subtaskTotals.total_time_logged,
+              estimated_cost: acc.estimated_cost + subtaskTotals.estimated_cost,
+            };
+          } else {
+            // Leaf task - calculate values from individual task properties
+            const leafTotalActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+            const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
+            return {
+              hours: acc.hours + (task.estimated_seconds || 0),
+              // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
+              manDays:
+                acc.manDays +
+                (task.total_minutes > 0
+                  ? task.total_minutes / 60 / (hoursPerDay || 8)
+                  : task.estimated_seconds / 3600 / (hoursPerDay || 8)),
+              cost: acc.cost + (task.actual_cost_from_logs || 0),
+              fixedCost: acc.fixedCost + (task.fixed_cost || 0),
+              totalBudget: acc.totalBudget + leafTotalBudget,
+              totalActual: acc.totalActual + leafTotalActual,
+              variance: acc.variance + (leafTotalActual - leafTotalBudget),
+              total_time_logged: acc.total_time_logged + (task.total_time_logged_seconds || 0),
+              estimated_cost: acc.estimated_cost + (task.estimated_cost || 0),
+            };
+          }
+        },
+        {
+          hours: 0,
+          manDays: 0,
+          cost: 0,
+          fixedCost: 0,
+          totalBudget: 0,
+          totalActual: 0,
+          variance: 0,
+          total_time_logged: 0,
+          estimated_cost: 0,
         }
-      }, {
+      );
+    };
+
+    return activeTablesList.reduce(
+      (acc, table: IProjectFinanceGroup) => {
+        const groupTotals = calculateTaskTotalsRecursively(table.tasks);
+        return {
+          hours: acc.hours + groupTotals.hours,
+          manDays: acc.manDays + groupTotals.manDays,
+          cost: acc.cost + groupTotals.cost,
+          fixedCost: acc.fixedCost + groupTotals.fixedCost,
+          totalBudget: acc.totalBudget + groupTotals.totalBudget,
+          totalActual: acc.totalActual + groupTotals.totalActual,
+          variance: acc.variance + groupTotals.variance,
+          total_time_logged: acc.total_time_logged + groupTotals.total_time_logged,
+          estimated_cost: acc.estimated_cost + groupTotals.estimated_cost,
+        };
+      },
+      {
         hours: 0,
         manDays: 0,
         cost: 0,
@@ -152,37 +189,10 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         totalActual: 0,
         variance: 0,
         total_time_logged: 0,
-        estimated_cost: 0
-      });
-    };
-
-    return activeTablesList.reduce((acc, table: IProjectFinanceGroup) => {
-      const groupTotals = calculateTaskTotalsRecursively(table.tasks);
-      return {
-        hours: acc.hours + groupTotals.hours,
-        manDays: acc.manDays + groupTotals.manDays,
-        cost: acc.cost + groupTotals.cost,
-        fixedCost: acc.fixedCost + groupTotals.fixedCost,
-        totalBudget: acc.totalBudget + groupTotals.totalBudget,
-        totalActual: acc.totalActual + groupTotals.totalActual,
-        variance: acc.variance + groupTotals.variance,
-        total_time_logged: acc.total_time_logged + groupTotals.total_time_logged,
-        estimated_cost: acc.estimated_cost + groupTotals.estimated_cost
-      };
-    }, {
-      hours: 0,
-      manDays: 0,
-      cost: 0,
-      fixedCost: 0,
-      totalBudget: 0,
-      totalActual: 0,
-      variance: 0,
-      total_time_logged: 0,
-      estimated_cost: 0
-    });
+        estimated_cost: 0,
+      }
+    );
   }, [activeTablesList, hoursPerDay]);
-
-  console.log('totals', totals);
 
   const renderFinancialTableHeaderContent = (columnKey: FinanceTableColumnKeys) => {
     switch (columnKey) {
@@ -199,25 +209,39 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
           </Typography.Text>
         );
       case FinanceTableColumnKeys.COST:
-        return <Typography.Text style={{ fontSize: 18 }}>{`${totals.cost?.toFixed(2)}`}</Typography.Text>;
+        return (
+          <Typography.Text style={{ fontSize: 18 }}>{`${totals.cost?.toFixed(2)}`}</Typography.Text>
+        );
       case FinanceTableColumnKeys.FIXED_COST:
-        return <Typography.Text style={{ fontSize: 18 }}>{totals.fixedCost?.toFixed(2)}</Typography.Text>;
+        return (
+          <Typography.Text style={{ fontSize: 18 }}>{totals.fixedCost?.toFixed(2)}</Typography.Text>
+        );
       case FinanceTableColumnKeys.TOTAL_BUDGET:
-        return <Typography.Text style={{ fontSize: 18 }}>{totals.totalBudget?.toFixed(2)}</Typography.Text>;
+        return (
+          <Typography.Text style={{ fontSize: 18 }}>
+            {totals.totalBudget?.toFixed(2)}
+          </Typography.Text>
+        );
       case FinanceTableColumnKeys.TOTAL_ACTUAL:
-        return <Typography.Text style={{ fontSize: 18 }}>{totals.totalActual?.toFixed(2)}</Typography.Text>;
+        return (
+          <Typography.Text style={{ fontSize: 18 }}>
+            {totals.totalActual?.toFixed(2)}
+          </Typography.Text>
+        );
       case FinanceTableColumnKeys.VARIANCE:
         return (
           <Typography.Text
             style={{
               color: totals.variance > 0 ? '#d32f2f' : '#2e7d32',
               fontSize: 18,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
-            {totals.variance < 0 ? `+${Math.abs(totals.variance).toFixed(2)}` : 
-             totals.variance > 0 ? `-${totals.variance.toFixed(2)}` : 
-             `${totals.variance?.toFixed(2)}`}
+            {totals.variance < 0
+              ? `+${Math.abs(totals.variance).toFixed(2)}`
+              : totals.variance > 0
+                ? `-${totals.variance.toFixed(2)}`
+                : `${totals.variance?.toFixed(2)}`}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:
@@ -265,7 +289,10 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                   style={{
                     minWidth: col.width,
                     paddingInline: 16,
-                    textAlign: col.type === 'hours' || col.type === 'currency' || col.type === 'man_days' ? 'center' : 'start',
+                    textAlign:
+                      col.type === 'hours' || col.type === 'currency' || col.type === 'man_days'
+                        ? 'center'
+                        : 'start',
                   }}
                   className={`${customColumnHeaderStyles(col.key)} before:constent relative before:absolute before:left-0 before:top-1/2 before:h-[36px] before:w-0.5 before:-translate-y-1/2 ${themeMode === 'dark' ? 'before:bg-white/10' : 'before:bg-black/5'}`}
                 >
@@ -300,7 +327,10 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
                     {col.key === FinanceTableColumnKeys.TASK ? (
                       <Typography.Text style={{ fontSize: 18 }}>{t('totalText')}</Typography.Text>
                     ) : col.key === FinanceTableColumnKeys.MEMBERS ? null : (
-                      (col.type === 'hours' || col.type === 'currency' || col.type === 'man_days') && renderFinancialTableHeaderContent(col.key)
+                      (col.type === 'hours' ||
+                        col.type === 'currency' ||
+                        col.type === 'man_days') &&
+                      renderFinancialTableHeaderContent(col.key)
                     )}
                   </td>
                 ))}
@@ -308,7 +338,7 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
             )}
 
             {hasAnyTasks ? (
-              activeTablesList.map((table) => (
+              activeTablesList.map(table => (
                 <FinanceTable
                   key={table.group_id}
                   table={table}
@@ -319,12 +349,13 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
               ))
             ) : (
               <tr>
-                <td colSpan={activeColumns.length} style={{ padding: '40px 0', textAlign: 'center' }}>
+                <td
+                  colSpan={activeColumns.length}
+                  style={{ padding: '40px 0', textAlign: 'center' }}
+                >
                   <Empty
                     description={
-                      <Typography.Text type="secondary">
-                        {t('noTasksFound')}
-                      </Typography.Text>
+                      <Typography.Text type="secondary">{t('noTasksFound')}</Typography.Text>
                     }
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />

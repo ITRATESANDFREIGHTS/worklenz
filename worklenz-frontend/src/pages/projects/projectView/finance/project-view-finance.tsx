@@ -7,7 +7,7 @@ import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { fetchProjectFinances, setActiveTab, setActiveGroup, updateProjectFinanceCurrency, fetchProjectFinancesSilent, setBillableFilter, resetAllTaskExpansions } from '@/features/projects/finance/project-finance.slice';
 import { changeCurrency, toggleImportRatecardsDrawer } from '@/features/finance/finance-slice';
-import { updateProjectCurrency } from '@/features/project/project.slice';
+import { updateProjectCurrency, getProject } from '@/features/project/project.slice';
 import { projectFinanceApiService } from '@/api/project-finance-ratecard/project-finance.api.service';
 import { RootState } from '@/app/store';
 import FinanceTableWrapper from './finance-tab/finance-table/finance-table-wrapper';
@@ -297,6 +297,9 @@ const ProjectViewFinance = () => {
       
       // Refresh the project data to get updated budget
       refreshFinanceData();
+      
+      // Also refresh the main project data to update budget statistics
+      dispatch(getProject(projectId));
       
       message.success('Project budget updated successfully');
       setBudgetModalVisible(false);
