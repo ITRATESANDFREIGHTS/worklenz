@@ -150,6 +150,20 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         INNER JOIN task_tree tt ON t.parent_task_id = tt.id
         WHERE t.archived = false
       ),
+      -- Identify leaf tasks (tasks with no children) for proper aggregation
+      leaf_tasks AS (
+        SELECT 
+          tt.*,
+          CASE 
+            WHEN NOT EXISTS (
+              SELECT 1 FROM task_tree child_tt 
+              WHERE child_tt.parent_task_id = tt.id 
+                AND child_tt.root_id = tt.root_id
+            ) THEN true
+            ELSE false
+          END as is_leaf
+        FROM task_tree tt
+      ),
       task_costs AS (
         SELECT 
           tt.*,
@@ -229,7 +243,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
                 WHERE twl.task_id = tt.id
               ), 0)
           END as actual_cost_from_logs
-        FROM task_tree tt
+        FROM leaf_tasks tt
       ),
       aggregated_tasks AS (
         SELECT 
@@ -241,69 +255,64 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           tc.phase_id,
           tc.assignees,
           tc.billable,
-          -- Fixed cost aggregation: include current task + all descendants
+          -- Fixed cost aggregation: sum from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.fixed_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id
+              SELECT COALESCE(SUM(leaf_tc.fixed_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.fixed_cost
           END as fixed_cost,
           tc.sub_tasks_count,
-          -- For parent tasks, sum values from descendants only (exclude parent task itself)
+          -- For parent tasks, sum values from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              -- For parent tasks with children, sum only LEAF tasks (tasks without children)
-              SELECT COALESCE(SUM(sub_tc.estimated_seconds), 0)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id 
-                AND sub_tc.id != tc.id
-                AND NOT EXISTS (
-                  SELECT 1 FROM task_costs child_tc 
-                  WHERE child_tc.parent_task_id = sub_tc.id 
-                    AND child_tc.root_id = tc.id
-                )
+              SELECT COALESCE(SUM(leaf_tc.estimated_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_seconds
           END as estimated_seconds,
-          -- Add total_minutes aggregation for recursive man days calculation
+          -- Sum total_minutes from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              -- For parent tasks with children, sum only LEAF tasks (tasks without children)
-              SELECT COALESCE(SUM(sub_tc.total_minutes), 0)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id 
-                AND sub_tc.id != tc.id
-                AND NOT EXISTS (
-                  SELECT 1 FROM task_costs child_tc 
-                  WHERE child_tc.parent_task_id = sub_tc.id 
-                    AND child_tc.root_id = tc.id
-                )
+              SELECT COALESCE(SUM(leaf_tc.total_minutes), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.total_minutes
           END as total_minutes,
+          -- Sum time logged from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.total_time_logged_seconds)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.total_time_logged_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.total_time_logged_seconds
           END as total_time_logged_seconds,
+          -- Sum estimated cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.estimated_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_cost
           END as estimated_cost,
+          -- Sum actual cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.actual_cost_from_logs)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.actual_cost_from_logs), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.actual_cost_from_logs
           END as actual_cost_from_logs
@@ -826,6 +835,20 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         INNER JOIN task_tree tt ON t.parent_task_id = tt.id
         WHERE t.archived = false
       ),
+      -- Identify leaf tasks (tasks with no children) for proper aggregation
+      leaf_tasks AS (
+        SELECT 
+          tt.*,
+          CASE 
+            WHEN NOT EXISTS (
+              SELECT 1 FROM task_tree child_tt 
+              WHERE child_tt.parent_task_id = tt.id 
+                AND child_tt.root_id = tt.root_id
+            ) THEN true
+            ELSE false
+          END as is_leaf
+        FROM task_tree tt
+      ),
       task_costs AS (
         SELECT 
           tt.*,
@@ -905,7 +928,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
                 WHERE twl.task_id = tt.id
               ), 0)
           END as actual_cost_from_logs
-        FROM task_tree tt
+        FROM leaf_tasks tt
       ),
       aggregated_tasks AS (
         SELECT 
@@ -917,46 +940,64 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           tc.phase_id,
           tc.assignees,
           tc.billable,
-          -- Fixed cost aggregation: include current task + all descendants
+          -- Fixed cost aggregation: sum from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.fixed_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id
+              SELECT COALESCE(SUM(leaf_tc.fixed_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.fixed_cost
           END as fixed_cost,
           tc.sub_tasks_count,
-          -- For subtasks that have their own sub-subtasks, sum values from descendants only
+          -- For subtasks that have their own sub-subtasks, sum values from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_seconds)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.estimated_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_seconds
           END as estimated_seconds,
+          -- Sum total_minutes from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.total_time_logged_seconds)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.total_minutes), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
+            )
+            ELSE tc.total_minutes
+          END as total_minutes,
+          -- Sum time logged from leaf tasks only
+          CASE 
+            WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
+              SELECT COALESCE(SUM(leaf_tc.total_time_logged_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.total_time_logged_seconds
           END as total_time_logged_seconds,
+          -- Sum estimated cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.estimated_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_cost
           END as estimated_cost,
+          -- Sum actual cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.actual_cost_from_logs)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.actual_cost_from_logs), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.actual_cost_from_logs
           END as actual_cost_from_logs
@@ -1158,6 +1199,20 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         INNER JOIN task_tree tt ON t.parent_task_id = tt.id
         WHERE t.archived = false
       ),
+      -- Identify leaf tasks (tasks with no children) for proper aggregation
+      leaf_tasks AS (
+        SELECT 
+          tt.*,
+          CASE 
+            WHEN NOT EXISTS (
+              SELECT 1 FROM task_tree child_tt 
+              WHERE child_tt.parent_task_id = tt.id 
+                AND child_tt.root_id = tt.root_id
+            ) THEN true
+            ELSE false
+          END as is_leaf
+        FROM task_tree tt
+      ),
       task_costs AS (
         SELECT 
           tt.*,
@@ -1237,7 +1292,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
                 WHERE twl.task_id = tt.id
               ), 0)
           END as actual_cost_from_logs
-        FROM task_tree tt
+        FROM leaf_tasks tt
       ),
       aggregated_tasks AS (
         SELECT 
@@ -1249,46 +1304,64 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
           tc.phase_id,
           tc.assignees,
           tc.billable,
-          -- Fixed cost aggregation: include current task + all descendants
+          -- Fixed cost aggregation: sum from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.fixed_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id
+              SELECT COALESCE(SUM(leaf_tc.fixed_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.fixed_cost
           END as fixed_cost,
           tc.sub_tasks_count,
-          -- For parent tasks, sum values from descendants only (exclude parent task itself)
+          -- For parent tasks, sum values from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_seconds)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.estimated_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_seconds
           END as estimated_seconds,
+          -- Sum total_minutes from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.total_time_logged_seconds)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.total_minutes), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
+            )
+            ELSE tc.total_minutes
+          END as total_minutes,
+          -- Sum time logged from leaf tasks only
+          CASE 
+            WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
+              SELECT COALESCE(SUM(leaf_tc.total_time_logged_seconds), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.total_time_logged_seconds
           END as total_time_logged_seconds,
+          -- Sum estimated cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.estimated_cost)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.estimated_cost), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.estimated_cost
           END as estimated_cost,
+          -- Sum actual cost from leaf tasks only
           CASE 
             WHEN tc.level = 0 AND tc.sub_tasks_count > 0 THEN (
-              SELECT SUM(sub_tc.actual_cost_from_logs)
-              FROM task_costs sub_tc 
-              WHERE sub_tc.root_id = tc.id AND sub_tc.id != tc.id
+              SELECT COALESCE(SUM(leaf_tc.actual_cost_from_logs), 0)
+              FROM task_costs leaf_tc 
+              WHERE leaf_tc.root_id = tc.id 
+                AND leaf_tc.is_leaf = true
             )
             ELSE tc.actual_cost_from_logs
           END as actual_cost_from_logs
