@@ -1,7 +1,7 @@
 import { projectMembersApiService } from '@/api/project-members/project-members.api.service';
 import { projectsApiService } from '@/api/projects/projects.api.service';
 import { IMentionMemberViewModel } from '@/types/project/projectComments.types';
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 interface ProjectMembersState {
   membersList: IMentionMemberViewModel[];

@@ -51,17 +51,6 @@ const TimerButton = () => {
   };
 
   useEffect(() => {
-    fetchRunningTimers();
-    
-    // Set up polling to refresh timers every 30 seconds
-    const pollInterval = setInterval(() => {
-      fetchRunningTimers();
-    }, 30000);
-    
-    return () => clearInterval(pollInterval);
-  }, [fetchRunningTimers]);
-
-  useEffect(() => {
     if (runningTimers.length > 0) {
       updateCurrentTimes();
       const interval = setInterval(updateCurrentTimes, 1000);
