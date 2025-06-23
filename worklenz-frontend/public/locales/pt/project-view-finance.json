@@ -117,7 +117,7 @@
       "totalBudgetHourly": "Custo total orçado incluindo custo estimado (Horas × Taxas por Hora) + Custos Fixos.",
       "totalBudgetManDays": "Custo total orçado incluindo custo estimado (Dias-Homem × Taxas Diárias) + Custos Fixos.",
       "totalActual": "Custo total real incluindo custo baseado em tempo + Custos Fixos.",
-      "variance": "Variância de custo: Total Real - Total Orçado. Valores positivos indicam acima do orçamento, valores negativos indicam abaixo do orçamento."
+      "variance": "Variância de custo: Total Orçado - Total Real. Valores positivos indicam abaixo do orçamento, valores negativos indicam acima do orçamento."
     }
 }
   

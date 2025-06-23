@@ -153,15 +153,11 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
         return (
           <Typography.Text
             style={{
-              color: formattedTotals.variance > 0 ? '#d32f2f' : '#2e7d32',
+              color: formattedTotals.variance < 0 ? '#d32f2f' : '#2e7d32',
               fontWeight: 'bold',
             }}
           >
-            {formattedTotals.variance < 0
-              ? '+' + formatNumber(Math.abs(formattedTotals.variance))
-              : formattedTotals.variance > 0
-                ? '-' + formatNumber(formattedTotals.variance)
-                : formatNumber(formattedTotals.variance)}
+            {formatNumber(formattedTotals.variance)}
           </Typography.Text>
         );
       default:
@@ -572,22 +568,19 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           </Typography.Text>
         );
       case FinanceTableColumnKeys.VARIANCE:
-        const taskTotalBudgetForVariance = (task.estimated_cost || 0) + (task.fixed_cost || 0);
-        const taskTotalActualForVariance = task.actual_cost_from_logs || 0;
-        const taskVariance = taskTotalActualForVariance - taskTotalBudgetForVariance;
+        // Calculate variance as Budget - Actual (positive = under budget = good)
+        const varianceBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
+        const varianceActual = (task.actual_cost_from_logs || 0) + (task.fixed_cost || 0);
+        const taskVariance = varianceBudget - varianceActual;
         return (
           <Typography.Text
             style={{
-              color: taskVariance > 0 ? '#d32f2f' : '#2e7d32',
+              color: taskVariance < 0 ? '#d32f2f' : '#2e7d32',
               fontSize: Math.max(12, 14 - level * 0.5),
               fontWeight: 'bold',
             }}
           >
-            {taskVariance < 0
-              ? '+' + formatNumber(Math.abs(taskVariance))
-              : taskVariance > 0
-                ? '-' + formatNumber(taskVariance)
-                : formatNumber(taskVariance)}
+            {formatNumber(taskVariance)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_BUDGET:
@@ -598,10 +591,9 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_ACTUAL:
-        const taskTotalActual = task.actual_cost_from_logs || 0;
         return (
           <Typography.Text style={{ fontSize: Math.max(12, 14 - level * 0.5) }}>
-            {formatNumber(taskTotalActual)}
+            {formatNumber(task.total_actual || 0)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.COST:
@@ -672,8 +664,8 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           totals.variance += subtaskTotals.variance;
         } else {
           // Leaf task or parent task without loaded subtasks - use backend aggregated values
-          const leafTotalActual = task.actual_cost_from_logs || 0;
-          const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
+          const leafTotalActual = task.total_actual || 0;
+          const leafTotalBudget = task.total_budget || 0;
           totals.hours += task.estimated_seconds || 0;
           // Use same calculation as individual task display - backend provides correct values
           const taskManDays =
@@ -687,7 +679,7 @@ const FinanceTable = ({ table, loading, onTaskClick, columns }: FinanceTableProp
           totals.fixed_cost += task.fixed_cost || 0;
           totals.total_budget += leafTotalBudget;
           totals.total_actual += leafTotalActual;
-          totals.variance += leafTotalActual - leafTotalBudget;
+          totals.variance += leafTotalBudget - leafTotalActual;
         }
       }
 

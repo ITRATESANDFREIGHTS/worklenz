@@ -117,7 +117,7 @@
       "totalBudgetHourly": "Total budgeted cost including estimated cost (Hours × Hourly Rates) + Fixed Costs.",
       "totalBudgetManDays": "Total budgeted cost including estimated cost (Man Days × Daily Rates) + Fixed Costs.",
       "totalActual": "Total actual cost including time-based cost + Fixed Costs.",
-      "variance": "Cost variance: Total Actual - Total Budget. Positive values indicate over-budget, negative values indicate under-budget."
+      "variance": "Cost variance: Total Budgeted Costs - Total Actual Cost. Positive values indicate under-budget, negative values indicate over-budget."
     }
 
   }

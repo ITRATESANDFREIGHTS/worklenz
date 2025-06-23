@@ -314,7 +314,7 @@ export default class ProjectfinanceController extends WorklenzControllerBase {
         at.*,
         (at.estimated_cost + at.fixed_cost) as total_budget,
         (at.actual_cost_from_logs + at.fixed_cost) as total_actual,
-        ((at.actual_cost_from_logs + at.fixed_cost) - (at.estimated_cost + at.fixed_cost)) as variance,
+        ((at.estimated_cost + at.fixed_cost) - (at.actual_cost_from_logs + at.fixed_cost)) as variance,
         -- Add effort variance for man days calculation
         CASE 
           WHEN $2 = 'man_days' THEN

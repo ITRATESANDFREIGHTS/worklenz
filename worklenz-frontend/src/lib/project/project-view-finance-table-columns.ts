@@ -31,7 +31,7 @@ type FinanceTableColumnsType = {
     {
       key: FinanceTableColumnKeys.MEMBERS,
       name: 'membersColumn',
-      width: 160,
+      width: 120,
       type: 'string',
     },
     {

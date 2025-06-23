@@ -130,9 +130,9 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
               estimated_cost: acc.estimated_cost + subtaskTotals.estimated_cost,
             };
           } else {
-            // Leaf task - calculate values from individual task properties
-            const leafTotalActual = task.actual_cost_from_logs || 0;
-            const leafTotalBudget = (task.estimated_cost || 0) + (task.fixed_cost || 0);
+            // Leaf task - use backend-provided calculated values
+            const leafTotalActual = task.total_actual || 0;
+            const leafTotalBudget = task.total_budget || 0;
             return {
               hours: acc.hours + (task.estimated_seconds || 0),
               // Calculate man days from total_minutes, fallback to estimated_seconds if total_minutes is 0
@@ -144,8 +144,8 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
               cost: acc.cost + (task.actual_cost_from_logs || 0),
               fixedCost: acc.fixedCost + (task.fixed_cost || 0),
               totalBudget: acc.totalBudget + leafTotalBudget,
-              totalActual: acc.totalActual + leafTotalActual,
-              variance: acc.variance + (leafTotalActual - leafTotalBudget),
+                          totalActual: acc.totalActual + leafTotalActual,
+            variance: acc.variance + (leafTotalBudget - leafTotalActual),
               total_time_logged: acc.total_time_logged + (task.total_time_logged_seconds || 0),
               estimated_cost: acc.estimated_cost + (task.estimated_cost || 0),
             };
@@ -232,16 +232,12 @@ const FinanceTableWrapper: React.FC<FinanceTableWrapperProps> = ({ activeTablesL
         return (
           <Typography.Text
             style={{
-              color: totals.variance > 0 ? '#d32f2f' : '#2e7d32',
+              color: totals.variance < 0 ? '#d32f2f' : '#2e7d32',
               fontSize: 18,
               fontWeight: 'bold',
             }}
           >
-            {totals.variance < 0
-              ? `+${Math.abs(totals.variance).toFixed(2)}`
-              : totals.variance > 0
-                ? `-${totals.variance.toFixed(2)}`
-                : `${totals.variance?.toFixed(2)}`}
+            {totals.variance?.toFixed(2)}
           </Typography.Text>
         );
       case FinanceTableColumnKeys.TOTAL_TIME_LOGGED:

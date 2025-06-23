@@ -517,8 +517,8 @@ const ProjectViewFinance = () => {
                     prefix={budgetStatistics.totalVariance >= 0 ? '+' : '-'}
                     suffix={` ${projectCurrency.toUpperCase()}`}
                     valueStyle={{ 
-                      color: budgetStatistics.totalVariance > 0 ? '#52c41a' : 
-                             budgetStatistics.totalVariance < 0 ? '#ff4d4f' : '#666666',
+                      color: budgetStatistics.totalVariance < 0 ? '#ff4d4f' : 
+                             budgetStatistics.totalVariance > 0 ? '#52c41a' : '#666666',
                       fontSize: '16px',
                       fontWeight: 'bold'
                     }}
