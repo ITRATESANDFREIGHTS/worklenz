@@ -432,22 +432,24 @@ export default class TasksController extends TasksControllerBase {
       // Check both the recursive estimation count and the actual database count
       const hasSubtasks = (task.sub_tasks_count || 0) > 0;
       
-      let totalMinutes, hours, minutes;
+      let totalMinutes, hours, remainderMinutes;
       
       if (hasSubtasks) {
-        // For parent tasks, use the sum of all subtasks' estimation (excluding parent's own estimation)
+        // For parent tasks, use ONLY the recursive sum from subtasks (exclude parent's own estimation completely)
         totalMinutes = recursiveEstimation.recursive_total_minutes || 0;
-        hours = recursiveEstimation.recursive_total_hours || 0;
-        minutes = recursiveEstimation.recursive_remaining_minutes || 0;
+        hours = Math.floor(totalMinutes / 60);  // Calculate hours from recursive total
+        remainderMinutes = totalMinutes % 60;   // Calculate remainder from recursive total
       } else {
-        // For tasks without subtasks, use their own estimation
+        // For leaf tasks, use their own estimation
         totalMinutes = task.total_minutes || 0;
         hours = Math.floor(totalMinutes / 60);
-        minutes = totalMinutes % 60;
+        remainderMinutes = totalMinutes % 60;
       }
 
+      // Set the correct values for frontend consumption
       task.total_hours = hours;
-      task.total_minutes = minutes;
+      task.total_minutes = remainderMinutes;  // Frontend expects remainder minutes (0-59), not full total
+      task.total_minutes_full = totalMinutes;  // Keep full total for other calculations if needed
       task.assignees = (task.assignees || []).map((i: any) => i.team_member_id);
 
       task.timer_start_time = moment(task.timer_start_time).valueOf();

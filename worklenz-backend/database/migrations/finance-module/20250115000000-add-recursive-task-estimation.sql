@@ -20,7 +20,7 @@ BEGIN
         AND archived = false
     ) INTO _has_subtasks;
 
-    -- If task has subtasks, calculate recursive estimation excluding parent's own estimation
+    -- If task has subtasks, calculate recursive estimation from ONLY the deepest level (leaf nodes)
     IF _has_subtasks THEN
         WITH RECURSIVE task_tree AS (
             -- Start with direct subtasks only (exclude the parent task itself)
@@ -45,19 +45,31 @@ BEGIN
             INNER JOIN task_tree tt ON t.parent_task_id = tt.id
             WHERE t.archived = false
         ),
+        leaf_tasks AS (
+            -- Select only leaf nodes (tasks that have no children)
+            SELECT 
+                tt.id,
+                tt.total_minutes
+            FROM task_tree tt
+            WHERE NOT EXISTS (
+                SELECT 1 FROM tasks t2 
+                WHERE t2.parent_task_id = tt.id 
+                AND t2.archived = false
+            )
+        ),
         task_counts AS (
             SELECT 
-                COUNT(*) as sub_tasks_count,
-                SUM(total_minutes) as subtasks_total_minutes  -- Sum all subtask estimations
-            FROM task_tree
+                (SELECT COUNT(*) FROM task_tree) as sub_tasks_count,  -- Total subtask count
+                SUM(total_minutes) as leaf_total_minutes  -- Sum only leaf node estimations
+            FROM leaf_tasks
         )
         SELECT JSON_BUILD_OBJECT(
             'sub_tasks_count', COALESCE(tc.sub_tasks_count, 0),
             'own_total_minutes', 0,  -- Always 0 for parent tasks
-            'subtasks_total_minutes', COALESCE(tc.subtasks_total_minutes, 0),
-            'recursive_total_minutes', COALESCE(tc.subtasks_total_minutes, 0),  -- Only subtasks total
-            'recursive_total_hours', FLOOR(COALESCE(tc.subtasks_total_minutes, 0) / 60),
-            'recursive_remaining_minutes', COALESCE(tc.subtasks_total_minutes, 0) % 60
+            'subtasks_total_minutes', COALESCE(tc.leaf_total_minutes, 0),  -- Only leaf tasks
+            'recursive_total_minutes', COALESCE(tc.leaf_total_minutes, 0),  -- Only leaf tasks total
+            'recursive_total_hours', FLOOR(COALESCE(tc.leaf_total_minutes, 0) / 60),
+            'recursive_remaining_minutes', COALESCE(tc.leaf_total_minutes, 0) % 60
         )
         INTO _result
         FROM task_counts tc;
