@@ -122,9 +122,6 @@ export default class ReportingMembersController extends ReportingControllerBase 
                                       ${includeArchived ? "" : `AND t.project_id NOT IN (SELECT project_id FROM archived_projects WHERE project_id = t.project_id AND archived_projects.user_id = '${userId}')`}) AS non_billable_time
                       FROM team_member_info_view tmiv
                       WHERE tmiv.team_id = $1 ${teamsClause}
-                          AND tmiv.team_member_id IN (SELECT team_member_id
-                                                      FROM project_members
-                                                      WHERE project_id IN (SELECT id FROM projects WHERE projects.team_id = tmiv.team_id))
                           ${searchQuery}
                       GROUP BY email, name, avatar_url, team_member_id, tmiv.team_id
                       ORDER BY last_user_activity DESC NULLS LAST
@@ -132,9 +129,6 @@ export default class ReportingMembersController extends ReportingControllerBase 
                       ${pagingClause}) t) AS members
                   FROM team_member_info_view tmiv
                   WHERE tmiv.team_id = $1 ${teamsClause}
-                  AND tmiv.team_member_id IN (SELECT team_member_id
-                                              FROM project_members
-                                              WHERE project_id IN (SELECT id FROM projects WHERE projects.team_id = tmiv.team_id))
                   ${searchQuery}`;
     const result = await db.query(q, [teamId]);
     const [data] = result.rows;
