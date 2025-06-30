@@ -567,42 +567,13 @@ export default class ReportingAllocationController extends ReportingControllerBa
     const billableQuery = this.buildBillableQueryWithAlias(billable, 't');
     const members = (req.body.members || []) as string[];
     
-    // Prepare members filter - updated logic to handle Clear All scenario
+    // Prepare members filter
     let membersFilter = "";
     if (members.length > 0) {
       const memberIds = members.map(id => `'${id}'`).join(",");
       membersFilter = `AND tmiv.team_member_id IN (${memberIds})`;
-    } else {
-      // No members selected - show no data (Clear All scenario)
-      membersFilter = `AND 1=0`; // This will match no rows
     }
-
-    // Prepare projects filter
-    let projectsFilter = "";
-    if (projectIds.length > 0) {
-      projectsFilter = `AND p.id IN (${projectIds})`;
-    } else {
-      // If no projects are selected, don't show any data
-      projectsFilter = `AND 1=0`; // This will match no rows
-    }
-
-    // Prepare categories filter - updated logic
-    let categoriesFilter = "";
-    if (categories.length > 0 && noCategory) {
-      // Both specific categories and "No Category" are selected
-      const categoryIds = categories.map(id => `'${id}'`).join(",");
-      categoriesFilter = `AND (p.category_id IS NULL OR p.category_id IN (${categoryIds}))`;
-    } else if (categories.length === 0 && noCategory) {
-      // Only "No Category" is selected
-      categoriesFilter = `AND p.category_id IS NULL`;
-    } else if (categories.length > 0 && !noCategory) {
-      // Only specific categories are selected
-      const categoryIds = categories.map(id => `'${id}'`).join(",");
-      categoriesFilter = `AND p.category_id IN (${categoryIds})`;
-    } else {
-      // categories.length === 0 && !noCategory - no categories selected, show nothing
-      categoriesFilter = `AND 1=0`; // This will match no rows
-    }
+    // If no members selected but other filters are applied, show all members
 
     // Create custom duration clause for twl table alias
     let customDurationClause = "";
@@ -626,7 +597,45 @@ export default class ReportingAllocationController extends ReportingControllerBa
         customDurationClause = "AND twl.created_at >= (CURRENT_DATE - INTERVAL '3 months')::DATE AND twl.created_at < CURRENT_DATE::DATE + INTERVAL '1 day'";
     }
 
+    // Prepare conditional filters for the subquery - only apply if selections are made
+    let conditionalProjectsFilter = "";
+    let conditionalCategoriesFilter = "";
+
+    // Only apply project filter if projects are actually selected
+    if (projectIds.length > 0) {
+      conditionalProjectsFilter = `AND p.id IN (${projectIds})`;
+    }
+
+    // Only apply category filter if categories are selected or noCategory is true
+    if (categories.length > 0 && noCategory) {
+      const categoryIds = categories.map(id => `'${id}'`).join(",");
+      conditionalCategoriesFilter = `AND (p.category_id IS NULL OR p.category_id IN (${categoryIds}))`;
+    } else if (categories.length === 0 && noCategory) {
+      conditionalCategoriesFilter = `AND p.category_id IS NULL`;
+    } else if (categories.length > 0 && !noCategory) {
+      const categoryIds = categories.map(id => `'${id}'`).join(",");
+      conditionalCategoriesFilter = `AND p.category_id IN (${categoryIds})`;
+    }
+    // If no categories and no noCategory, don't filter by category (show all)
+
+    // Check if all filters are unchecked (Clear All scenario) - return no data to avoid overwhelming UI
+    const hasProjectFilter = projectIds.length > 0;
+    const hasCategoryFilter = categories.length > 0 || noCategory;
+    const hasMemberFilter = members.length > 0;
+    // Note: We'll check utilization filter after the query since it's applied post-processing
+
+    if (!hasProjectFilter && !hasCategoryFilter && !hasMemberFilter) {
+      // Still need to check utilization filter, but we'll do a quick check
+      const utilization = (req.body.utilization || []) as string[];
+      const hasUtilizationFilter = utilization.length > 0;
+      
+      if (!hasUtilizationFilter) {
+        return res.status(200).send(new ServerResponse(true, { filteredRows: [], totals: { total_time_logs: "0", total_estimated_hours: "0", total_utilization: "0" } }));
+      }
+    }
+
     // Modified query to start from team members and calculate filtered time logs
+    // This query ensures ALL active team members are included, even if they have no logged time
     const q = `
       SELECT 
         tmiv.team_member_id, 
@@ -639,8 +648,8 @@ export default class ReportingAllocationController extends ReportingControllerBa
            LEFT JOIN projects p ON p.id = t.project_id
            WHERE twl.user_id = tmiv.user_id
              ${customDurationClause}
-             ${projectsFilter}
-             ${categoriesFilter}
+             ${conditionalProjectsFilter}
+             ${conditionalCategoriesFilter}
              ${archivedClause}
              ${billableQuery}
              AND p.team_id = tmiv.team_id
@@ -699,8 +708,10 @@ export default class ReportingAllocationController extends ReportingControllerBa
       // Filter to only show selected utilization states
       filteredRows = result.rows.filter(member => utilization.includes(member.utilization_state));
     } else {
-      // No utilization states selected - show no data (Clear All scenario)
-      filteredRows = [];
+      // No utilization states selected
+      // If we reached here, it means at least one other filter was applied
+      // so we show all members (don't filter by utilization)
+      filteredRows = result.rows;
     }
 
     // Calculate totals

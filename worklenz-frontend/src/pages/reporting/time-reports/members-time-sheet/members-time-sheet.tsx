@@ -56,13 +56,14 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
     return loggedTimeInHours.toFixed(2);
   }) : [];
   const colors = Array.isArray(jsonData) ? jsonData.map(item => {
-    const overUnder = parseFloat(item.over_under_utilized_hours || '0');
-    if (overUnder > 0) {
-      return '#ef4444'; // Red for over-utilized
-    } else if (overUnder < 0) {
-      return '#22c55e'; // Green for under-utilized
+    const utilizationPercent = parseFloat(item.utilization_percent || '0');
+    
+    if (utilizationPercent < 90) {
+      return '#faad14'; // Orange for under-utilized (< 90%)
+    } else if (utilizationPercent <= 110) {
+      return '#52c41a'; // Green for optimal utilization (90-110%)
     } else {
-      return '#6b7280'; // Gray for exactly on target
+      return '#ef4444'; // Red for over-utilized (> 110%)
     }
   }) : [];
 
@@ -131,24 +132,30 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
             
             // Color indicators based on utilization state
             let statusText = '';
+            let criteriaText = '';
             switch (member.utilization_state) {
               case 'under':
                 statusText = '🟠 Under-Utilized';
+                criteriaText = '(< 90%)';
                 break;
               case 'optimal':
                 statusText = '🟢 Optimally Utilized';
+                criteriaText = '(90% - 110%)';
                 break;
               case 'over':
                 statusText = '🔴 Over-Utilized';
+                criteriaText = '(> 110%)';
                 break;
               default:
                 statusText = '⚪ Unknown';
+                criteriaText = '';
             }
             
             return [
               `⏱️ ${context.dataset.label}: ${hours} h`,
               `📊 Utilization: ${percent}%`,
-              `${statusText}: ${overUnder} h`
+              `${statusText} ${criteriaText}`,
+              `📈 Variance: ${overUnder} h`
             ];
           },
           
