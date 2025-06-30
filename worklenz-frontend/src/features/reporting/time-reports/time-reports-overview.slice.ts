@@ -1,11 +1,9 @@
 import { reportingApiService } from '@/api/reporting/reporting.api.service';
-import { teamMembersApiService } from '@/api/team-members/teamMembers.api.service';
 import {
   ISelectableCategory,
   ISelectableProject,
   ISelectableTeam,
 } from '@/types/reporting/reporting-filters.types';
-import { ITeamMemberViewModel } from '@/types/teamMembers/teamMembersGetResponse.types';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface ITimeReportsOverviewState {
@@ -103,19 +101,14 @@ export const fetchReportingUtilization = createAsyncThunk(
 
 export const fetchReportingMembers = createAsyncThunk(
   'timeReportsOverview/fetchReportingMembers',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
+    const state = getState() as { timeReportsOverviewReducer: ITimeReportsOverviewState };
+    const { timeReportsOverviewReducer } = state;
+
     try {
-      const res = await teamMembersApiService.getAll();
+      const res = await reportingApiService.getMembers(selectedMembers(timeReportsOverviewReducer));
       if (res.done) {
-        // Transform the team members data to match the expected format
-        const members = res.body.map((member: ITeamMemberViewModel) => ({
-          id: member.id,
-          name: member.name,
-          email: member.email,
-          avatar_url: member.avatar_url,
-          selected: true // All members selected by default
-        }));
-        return { members };
+        return res.body;
       } else {
         return rejectWithValue(res.message || 'Failed to fetch members');
       }
@@ -286,7 +279,14 @@ const timeReportsOverviewSlice = createSlice({
       state.loadingProjects = false;
     });
     builder.addCase(fetchReportingMembers.fulfilled, (state, action) => {
-      state.members = action.payload.members;
+      const members = action.payload.members.map((member: any) => ({
+        id: member.id,
+        name: member.name,
+        selected: true,
+        avatar_url: member.avatar_url,
+        email: member.email,
+      }));
+      state.members = members;
       state.loadingMembers = false;
     });
 
