@@ -226,6 +226,13 @@ export const reportingApiService = {
     return response.data;
   },
 
+  getMembersBySelectedTeams: async (teamIds: string[], archived = false): Promise<IServerResponse<any[]>> => {
+    const q = toQueryString({ archived });
+    const url = `${rootUrl}/members/by-teams${q}`;
+    const response = await apiClient.post<IServerResponse<any[]>>(url, { teams: teamIds });
+    return response.data;
+  },
+
   getMemberProjects: async (
     body: any | null = null
   ): Promise<IServerResponse<IRPTMemberProject[]>> => {

@@ -69,6 +69,22 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
 
   const themeMode = useAppSelector(state => state.themeReducer.mode);
 
+  // Helper function to format hours to "X hours Y mins"
+  const formatHours = (decimalHours: number) => {
+    const wholeHours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - wholeHours) * 60);
+    
+    if (wholeHours === 0 && minutes === 0) {
+      return '0 mins';
+    } else if (wholeHours === 0) {
+      return `${minutes} mins`;
+    } else if (minutes === 0) {
+      return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'}`;
+    } else {
+      return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'} ${minutes} mins`;
+    }
+  };
+
   // Chart data
   const data = {
     labels,
@@ -93,6 +109,21 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
         offset: 20,
         textStrokeColor: 'black',
         textStrokeWidth: 4,
+        formatter: function(value: string) {
+          const hours = parseFloat(value);
+          const wholeHours = Math.floor(hours);
+          const minutes = Math.round((hours - wholeHours) * 60);
+          
+          if (wholeHours === 0 && minutes === 0) {
+            return '0 mins';
+          } else if (wholeHours === 0) {
+            return `${minutes} mins`;
+          } else if (minutes === 0) {
+            return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'}`;
+          } else {
+            return `${wholeHours} ${wholeHours === 1 ? 'hour' : 'hours'} ${minutes} mins`;
+          }
+        },
       },
       legend: {
         display: false,
@@ -126,9 +157,9 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
           label: function (context: any) {
             const idx = context.dataIndex;
             const member = jsonData[idx];
-            const hours = member?.utilized_hours || '0.00';
+            const hours = parseFloat(member?.utilized_hours || '0');
             const percent = parseFloat(member?.utilization_percent || '0.00');
-            const overUnder = member?.over_under_utilized_hours || '0.00';
+            const overUnder = parseFloat(member?.over_under_utilized_hours || '0');
             
             // Color indicators based on utilization state
             let statusText = '';
@@ -152,10 +183,10 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
             }
             
             return [
-              `⏱️ ${context.dataset.label}: ${hours} h`,
-              `📊 Utilization: ${percent}%`,
+              `⏱️ ${context.dataset.label}: ${formatHours(hours)}`,
+              `📊 Utilization: ${percent.toFixed(1)}%`,
               `${statusText} ${criteriaText}`,
-              `📈 Variance: ${overUnder} h`
+              `📈 Variance: ${formatHours(Math.abs(overUnder))}${overUnder < 0 ? ' (under)' : overUnder > 0 ? ' (over)' : ''}`
             ];
           },
           
@@ -164,7 +195,7 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
             const idx = context[0].dataIndex;
             const member = jsonData[idx];
             const loggedTime = parseFloat(member?.logged_time || '0') / 3600;
-            return `📊 Total Logged: ${loggedTime.toFixed(2)}h`;
+            return `📊 Total Logged: ${formatHours(loggedTime)}`;
           }
         }
       }

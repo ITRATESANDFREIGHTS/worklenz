@@ -8,7 +8,7 @@ import { reportingApiService } from '@/api/reporting/reporting.api.service';
 import logger from '@/utils/errorLogger';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
-import { fetchReportingCategories, fetchReportingProjects, fetchReportingTeams, setSelectOrDeselectAllTeams, setSelectOrDeselectTeam } from '@/features/reporting/time-reports/time-reports-overview.slice';
+import { fetchReportingCategories, fetchReportingProjects, fetchReportingTeams, fetchReportingMembers, setSelectOrDeselectAllTeams, setSelectOrDeselectTeam } from '@/features/reporting/time-reports/time-reports-overview.slice';
 
 const Team: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -54,6 +54,7 @@ const Team: React.FC = () => {
     dispatch(setSelectOrDeselectTeam({ id: key, selected: checked }));
     await dispatch(fetchReportingCategories());
     await dispatch(fetchReportingProjects());
+    await dispatch(fetchReportingMembers());
   };
 
   const handleSelectAllChange = async (e: CheckboxChangeEvent) => {
@@ -62,6 +63,7 @@ const Team: React.FC = () => {
     dispatch(setSelectOrDeselectAllTeams(isChecked));
     await dispatch(fetchReportingCategories());
     await dispatch(fetchReportingProjects());
+    await dispatch(fetchReportingMembers());
   };
 
   // Handle clear all
@@ -70,6 +72,7 @@ const Team: React.FC = () => {
     dispatch(setSelectOrDeselectAllTeams(false));
     await dispatch(fetchReportingCategories());
     await dispatch(fetchReportingProjects());
+    await dispatch(fetchReportingMembers());
   };
 
   // Handle select all button click
@@ -79,6 +82,7 @@ const Team: React.FC = () => {
     dispatch(setSelectOrDeselectAllTeams(newValue));
     await dispatch(fetchReportingCategories());
     await dispatch(fetchReportingProjects());
+    await dispatch(fetchReportingMembers());
   };
 
   const getButtonText = () => {
