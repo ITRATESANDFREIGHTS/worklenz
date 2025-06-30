@@ -680,15 +680,21 @@ export default class ReportingAllocationController extends ReportingControllerBa
       const utilizedHours = loggedSeconds / 3600;
       
       // For individual members, use the same logic as total calculation
-      let memberWorkingHours = totalWorkingHours;
-      if (isNonWorkingPeriod && loggedSeconds > 0) {
-        // Any time logged during non-working period should be treated as over-utilization
-        memberWorkingHours = Math.min(utilizedHours, 1); // Use actual time or 1 hour, whichever is smaller
-      }
+      let memberWorkingHours;
+      let utilizationPercent;
       
-      const utilizationPercent = memberWorkingHours > 0 && loggedSeconds
-        ? ((loggedSeconds / (memberWorkingHours * 3600)) * 100)
-        : 0;
+      if (isNonWorkingPeriod) {
+        // Non-working period: each member's expected working hours is 0
+        memberWorkingHours = 0;
+        // Any time logged during non-working period is overtime
+        utilizationPercent = loggedSeconds > 0 ? 100 : 0; // Show 100+ as numeric 100 for consistency
+      } else {
+        // Normal working period
+        memberWorkingHours = totalWorkingHours;
+        utilizationPercent = memberWorkingHours > 0 && loggedSeconds
+          ? ((loggedSeconds / (memberWorkingHours * 3600)) * 100)
+          : 0;
+      }
       const overUnder = utilizedHours - memberWorkingHours;
 
       member.value = utilizedHours ? parseFloat(utilizedHours.toFixed(2)) : 0;
