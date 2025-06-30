@@ -106,7 +106,24 @@ export const fetchReportingMembers = createAsyncThunk(
     const { timeReportsOverviewReducer } = state;
 
     try {
-      const res = await reportingApiService.getMembers(selectedMembers(timeReportsOverviewReducer));
+      // If members array is empty (initial load), fetch all members without pagination
+      // Otherwise, use the selected members filter
+      let queryParams;
+      if (timeReportsOverviewReducer.members.length === 0) {
+        // Initial load - fetch all members with a large page size to avoid pagination
+        queryParams = {
+          size: 1000, // Large number to get all members
+          index: 1,
+          search: '',
+          field: 'name',
+          order: 'asc'
+        };
+      } else {
+        // Subsequent calls - use selected members
+        queryParams = selectedMembers(timeReportsOverviewReducer);
+      }
+      
+      const res = await reportingApiService.getMembers(queryParams);
       if (res.done) {
         return res.body;
       } else {
