@@ -572,8 +572,13 @@ export default class ReportingAllocationController extends ReportingControllerBa
     if (members.length > 0) {
       const memberIds = members.map(id => `'${id}'`).join(",");
       membersFilter = `AND tmiv.team_member_id IN (${memberIds})`;
+    } else {
+      // If no members are selected, we should not show any data
+      // This is different from other filters where no selection means "show all"
+      // For members, no selection should mean "show none" to respect the UI filter state
+      membersFilter = `AND 1=0`; // This will match no rows
     }
-    // If no members selected but other filters are applied, show all members
+    // Note: Members filter works differently - when no members are selected, show nothing
 
     // Create custom duration clause for twl table alias
     let customDurationClause = "";
@@ -716,10 +721,22 @@ export default class ReportingAllocationController extends ReportingControllerBa
 
     // Calculate totals
     const total_time_logs = filteredRows.reduce((sum, member) => sum + parseFloat(member.logged_time || '0'), 0);
-    const total_estimated_hours = totalWorkingHours * filteredRows.length; // Total for all members
-    const total_utilization = total_time_logs > 0 && total_estimated_hours > 0
-      ? ((total_time_logs / (total_estimated_hours * 3600)) * 100).toFixed(1)
-      : '0';
+    
+    let total_estimated_hours;
+    let total_utilization;
+
+    if (isNonWorkingPeriod) {
+      // Non-working period: expected capacity is 0
+      total_estimated_hours = 0;
+      // Special handling for utilization on non-working days
+      total_utilization = total_time_logs > 0 ? "100+" : "0";
+    } else {
+      // Normal working period calculation
+      total_estimated_hours = totalWorkingHours * filteredRows.length;
+      total_utilization = total_time_logs > 0 && total_estimated_hours > 0
+        ? ((total_time_logs / (total_estimated_hours * 3600)) * 100).toFixed(1)
+        : '0';
+    }
 
     return res.status(200).send(new ServerResponse(true, {
       filteredRows,
