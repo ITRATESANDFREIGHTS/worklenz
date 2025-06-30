@@ -103,50 +103,22 @@ export const fetchReportingUtilization = createAsyncThunk(
 
 export const fetchReportingMembers = createAsyncThunk(
   'timeReportsOverview/fetchReportingMembers',
-  async (_, { rejectWithValue, getState }) => {
-    const state = getState() as { timeReportsOverviewReducer: ITimeReportsOverviewState };
-    const { timeReportsOverviewReducer } = state;
-
+  async (_, { rejectWithValue }) => {
     try {
-      // Get selected team IDs to filter members
-      const selectedTeamIds = selectedTeams(timeReportsOverviewReducer);
-      const allMembers: any[] = [];
-      
-      // If no teams are selected, get all members from current team
-      if (selectedTeamIds.length === 0) {
-        const res = await teamMembersApiService.getAll();
-        if (res.done) {
-          const members = res.body.map((member: ITeamMemberViewModel) => ({
-            id: member.id,
-            name: member.name,
-            email: member.email,
-            avatar_url: member.avatar_url,
-            selected: true
-          }));
-          return { members };
-        }
+      const res = await teamMembersApiService.getAll();
+      if (res.done) {
+        // Transform the team members data to match the expected format
+        const members = res.body.map((member: ITeamMemberViewModel) => ({
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          avatar_url: member.avatar_url,
+          selected: true // All members selected by default
+        }));
+        return { members };
       } else {
-        // Use the new API to get members from all selected teams in one call
-        const res = await reportingApiService.getMembersBySelectedTeams(
-          selectedTeamIds, 
-          timeReportsOverviewReducer.archived
-        );
-        
-        if (res.done && res.body) {
-          const members = res.body.map((member: any) => ({
-            id: member.id,
-            name: member.name,
-            email: member.email,
-            avatar_url: member.avatar_url,
-            team_id: member.team_id,
-            team_name: member.team_name,
-            selected: true
-          }));
-          return { members };
-        }
+        return rejectWithValue(res.message || 'Failed to fetch members');
       }
-      
-      return rejectWithValue('Failed to fetch members');
     } catch (error) {
       let errorMessage = 'An error occurred while fetching members';
       if (error instanceof Error) {

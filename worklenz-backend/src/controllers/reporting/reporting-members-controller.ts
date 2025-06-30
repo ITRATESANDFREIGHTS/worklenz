@@ -453,7 +453,7 @@ export default class ReportingMembersController extends ReportingControllerBase 
 
     const sheet = workbook.addWorksheet("Members");
 
-    const sheetColumns = [
+    sheet.columns = [
       { header: "Member", key: "name", width: 30 },
       { header: "Email", key: "email", width: 20 },
       { header: "Tasks Assigned", key: "tasks", width: 20 },
@@ -486,7 +486,7 @@ export default class ReportingMembersController extends ReportingControllerBase 
     sheet.mergeCells("A3:D3");
 
     // set table headers
-    sheet.getRow(5).values = sheetColumns.map(col => col.header);
+    sheet.getRow(5).values = ["Member", "Email", "Tasks Assigned", "Overdue Tasks", "Completed Tasks", "Ongoing Tasks", "Billable Time (seconds)", "Non-Billable Time (seconds)", "Done Tasks(%)", "Doing Tasks(%)", "Todo Tasks(%)"];
     sheet.getRow(5).font = { bold: true };
 
     for (const member of result.members) {
@@ -1368,63 +1368,6 @@ public static async getSingleMemberProjects(req: IWorkLenzRequest, res: IWorkLen
         res.end();
       });
 
-  }
-
-  @HandleExceptions()
-  public static async getMembersBySelectedTeams(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
-    try {
-      const { teams } = req.body;
-      const archived = req.query.archived === "true";
-      
-      if (!teams || !Array.isArray(teams) || teams.length === 0) {
-        return res.status(400).send(new ServerResponse(false, null, "Teams array is required"));
-      }
-
-             const archivedClause = archived 
-        ? ""
-        : `AND t.project_id NOT IN (SELECT project_id FROM archived_projects WHERE project_id = t.project_id AND archived_projects.user_id = $${teams.length + 1})`;
-
-      // Create parameterized placeholders for team IDs
-      const teamPlaceholders = teams.map((_, index) => `$${index + 1}`).join(",");
-
-      const q = `
-        SELECT DISTINCT 
-               tmiv.team_member_id AS id,
-               tmiv.name,
-               tmiv.email,
-               tmiv.avatar_url,
-               tmiv.team_id,
-               (SELECT name FROM teams WHERE id = tmiv.team_id) AS team_name
-        FROM team_member_info_view tmiv
-        WHERE tmiv.team_id IN (${teamPlaceholders})
-          AND tmiv.team_member_id IN (
-            SELECT DISTINCT team_member_id 
-            FROM project_members pm
-            LEFT JOIN tasks t ON pm.project_id = t.project_id
-            WHERE pm.team_member_id = tmiv.team_member_id
-            ${archivedClause}
-          )
-        ORDER BY tmiv.name ASC
-      `;
-
-      const queryParams = archived ? [...teams] : [...teams, req.user?.id];
-      const result = await db.query(q, queryParams);
-      
-      const members = result.rows.map(member => ({
-        id: member.id,
-        name: member.name,
-        email: member.email,
-        avatar_url: member.avatar_url,
-        team_id: member.team_id,
-        team_name: member.team_name,
-        color_code: getColor(member.name) + TASK_PRIORITY_COLOR_ALPHA
-      }));
-
-      return res.status(200).send(new ServerResponse(true, members));
-    } catch (error) {
-      console.error("Error fetching members by selected teams:", error);
-      return res.status(500).send(new ServerResponse(false, null, "Failed to fetch members"));
-    }
   }
 
 }

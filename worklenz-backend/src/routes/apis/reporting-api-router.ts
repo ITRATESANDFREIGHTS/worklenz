@@ -35,7 +35,6 @@ reportingApiRouter.post("/project-timelogs", safeControllerFunction(ReportingPro
 
 // members
 reportingApiRouter.get("/members", safeControllerFunction(ReportingMembersController.getReportingMembers));
-reportingApiRouter.post("/members/by-teams", safeControllerFunction(ReportingMembersController.getMembersBySelectedTeams));
 
 reportingApiRouter.post("/members/all", safeControllerFunction(ReportingController.getReportingMembers));
 reportingApiRouter.post("/projects-by-member", safeControllerFunction(ReportingController.getProjectsByMember));
