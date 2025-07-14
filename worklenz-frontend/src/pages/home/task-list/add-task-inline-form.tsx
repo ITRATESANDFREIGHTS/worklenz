@@ -58,30 +58,27 @@ const AddTaskInlineForm = ({ t, calendarView }: AddTaskInlineFormProps) => {
   ];
 
   const calculateEndDate = (dueDate: string): string | undefined => {
-    const today = new Date();
-    let targetDate: Date;
+    const today = dayjs();
+    let targetDate: dayjs.Dayjs;
 
     switch (dueDate) {
       case 'Today':
-        targetDate = new Date(today);
+        targetDate = today;
         break;
       case 'Tomorrow':
-        targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + 1);
+        targetDate = today.add(1, 'day');
         break;
       case 'Next Week':
-        targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + 7);
+        targetDate = today.add(7, 'day');
         break;
       case 'Next Month':
-        targetDate = new Date(today);
-        targetDate.setMonth(today.getMonth() + 1);
+        targetDate = today.add(1, 'month');
         break;
       default:
         return undefined;
     }
 
-    return targetDate.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
+    return targetDate.format('YYYY-MM-DD');
   };
 
   const projectOptions = [

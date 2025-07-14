@@ -72,7 +72,7 @@ const BoardViewCreateTaskCard = ({
 
     // Set end date if provided
     if (dueDate) {
-      body.end_date = dueDate.toISOString();
+      body.end_date = dueDate.format('YYYY-MM-DD');
     }
 
     // Set the appropriate group ID based on the current grouping
