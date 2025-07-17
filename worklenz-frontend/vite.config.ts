@@ -1,12 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tsconfigPaths from 'vite-tsconfig-paths';
 import path from 'path';
 
 export default defineConfig(({ command, mode }) => {
   const isProduction = command === 'build';
 
-export default defineConfig(({ command }) => {
   return {
     // **Plugins**
     plugins: [react()],
