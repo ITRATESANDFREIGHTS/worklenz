@@ -175,7 +175,7 @@ const projectSlice = createSlice({
       }
     },
     reset: () => initialState,
-    setRefreshTimestamp: (state) => {
+    setRefreshTimestamp: state => {
       state.refreshTimestamp = new Date().getTime().toString();
     },
     setProjectView: (state, action: PayloadAction<'list' | 'kanban' | 'gantt'>) => {

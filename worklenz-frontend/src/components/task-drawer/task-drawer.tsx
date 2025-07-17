@@ -3,7 +3,7 @@ import Drawer from 'antd/es/drawer';
 import { InputRef } from 'antd/es/input';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
@@ -13,6 +13,7 @@ import {
   setTaskFormViewModel,
   setTaskSubscribers,
   setTimeLogEditing,
+  fetchTask,
 } from '@/features/task-drawer/task-drawer.slice';
 
 import './task-drawer.css';
@@ -33,6 +34,7 @@ const TaskDrawer = () => {
 
   const { showTaskDrawer, timeLogEditing } = useAppSelector(state => state.taskDrawerReducer);
   const { taskFormViewModel, selectedTaskId } = useAppSelector(state => state.taskDrawerReducer);
+  const { projectId } = useAppSelector(state => state.projectReducer);
   const taskNameInputRef = useRef<InputRef>(null);
   const isClosingManually = useRef(false);
 
@@ -54,6 +56,17 @@ const TaskDrawer = () => {
     dispatch(setTaskSubscribers([]));
   };
 
+  const handleBackToParent = () => {
+    if (taskFormViewModel?.task?.parent_task_id && projectId) {
+      // Navigate to parent task
+      dispatch(setSelectedTaskId(taskFormViewModel.task.parent_task_id));
+      dispatch(fetchTask({ 
+        taskId: taskFormViewModel.task.parent_task_id, 
+        projectId 
+      }));
+    }
+  };
+
   const handleOnClose = (
     e?: React.MouseEvent<Element, MouseEvent> | React.KeyboardEvent<Element>
   ) => {
@@ -68,10 +81,8 @@ const TaskDrawer = () => {
     if (isClickOutsideDrawer || !taskFormViewModel?.task?.is_sub_task) {
       resetTaskState();
     } else {
-      dispatch(setSelectedTaskId(null));
-      dispatch(setTaskFormViewModel({}));
-      dispatch(setTaskSubscribers([]));
-      dispatch(setSelectedTaskId(taskFormViewModel?.task?.parent_task_id || null));
+      // For sub-tasks, navigate to parent instead of closing
+      handleBackToParent();
     }
     // Reset the flag after a short delay
     setTimeout(() => {
@@ -180,6 +191,14 @@ const TaskDrawer = () => {
             ) : (
               addButton
             )}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddTimeLog}
+              style={{ width: '100%' }}
+            >
+              {t('taskTimeLogTab.addTimeLog')}
+            </Button>
           </Flex>
         );
       }
@@ -229,6 +248,17 @@ const TaskDrawer = () => {
     };
   };
 
+  // Check if current task is a sub-task
+  const isSubTask = taskFormViewModel?.task?.is_sub_task || !!taskFormViewModel?.task?.parent_task_id;
+
+  // Custom close icon based on whether it's a sub-task
+  const getCloseIcon = () => {
+    if (isSubTask) {
+      return <ArrowLeftOutlined />;
+    }
+    return <CloseOutlined />;
+  };
+
   const drawerProps = {
     open: showTaskDrawer,
     onClose: handleOnClose,
@@ -239,6 +269,7 @@ const TaskDrawer = () => {
     footer: renderFooter(),
     bodyStyle: getBodyStyle(),
     footerStyle: getFooterStyle(),
+    closeIcon: getCloseIcon(),
   };
 
   return (
@@ -246,7 +277,7 @@ const TaskDrawer = () => {
       <Tabs
         type="card"
         items={tabItems}
-        destroyInactiveTabPane
+        destroyOnHidden
         onChange={handleTabChange}
         activeKey={activeTab}
       />

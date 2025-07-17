@@ -25,4 +25,3 @@ export function buildTimeString(hours: number, minutes: number, seconds: number)
   const s = `${seconds}s`;
   return `${h} ${m} ${s}`.trim();
 }
-

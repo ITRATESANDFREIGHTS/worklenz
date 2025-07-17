@@ -1,7 +1,13 @@
 {
   "taskHeader": {
     "taskNamePlaceholder": "Digite sua tarefa",
-    "deleteTask": "Excluir tarefa"
+    "deleteTask": "Excluir tarefa",
+    "parentTask": "Tarefa principal",
+    "currentTask": "Tarefa atual",
+    "back": "Voltar",
+    "backToParent": "Voltar à tarefa principal",
+    "toParentTask": "à tarefa principal",
+    "loadingHierarchy": "Carregando hierarquia..."
   },
   "taskInfoTab": {
     "title": "Informações",
@@ -16,21 +22,20 @@
       "labels": "Etiquetas",
       "billable": "Faturável",
       "notify": "Notificar",
-      "when-done-notify": "Quando concluída, notificar",
+      "when-done-notify": "Ao concluir, notificar",
       "start-date": "Data de início",
       "end-date": "Data de término",
       "hide-start-date": "Ocultar data de início",
       "show-start-date": "Mostrar data de início",
       "hours": "Horas",
       "minutes": "Minutos",
-      "time-estimation-disabled-tooltip": "A estimativa de tempo está desabilitada porque esta tarefa tem {{count}} subtarefas. A estimativa mostrada é a soma de todas as subtarefas.",
-      "progressValue": "Valor do Progresso",
+      "progressValue": "Valor do progresso",
       "progressValueTooltip": "Definir a porcentagem de progresso (0-100%)",
       "progressValueRequired": "Por favor, insira um valor de progresso",
       "progressValueRange": "O progresso deve estar entre 0 e 100",
-      "taskWeight": "Peso da Tarefa",
+      "taskWeight": "Peso da tarefa",
       "taskWeightTooltip": "Definir o peso desta subtarefa (porcentagem)",
-      "taskWeightRequired": "Por favor, insira um peso para a tarefa",
+      "taskWeightRequired": "Por favor, insira um peso da tarefa",
       "taskWeightRange": "O peso deve estar entre 0 e 100",
       "recurring": "Recorrente"
     },
@@ -40,11 +45,11 @@
     },
     "description": {
       "title": "Descrição",
-      "placeholder": "Adicionar uma descrição mais detalhada..."
+      "placeholder": "Adicione uma descrição mais detalhada..."
     },
     "subTasks": {
       "title": "Subtarefas",
-      "addSubTask": "+ Adicionar subtarefa",
+      "addSubTask": "Adicionar subtarefa",
       "addSubTaskInputPlaceholder": "Digite sua tarefa e pressione enter",
       "refreshSubTasks": "Atualizar subtarefas",
       "edit": "Editar",
@@ -62,15 +67,26 @@
     },
     "attachments": {
       "title": "Anexos",
-      "chooseOrDropFileToUpload": "Escolha ou arraste um arquivo para carregar",
-      "uploading": "Carregando..."
+      "chooseOrDropFileToUpload": "Escolha ou arraste arquivo para enviar",
+      "uploading": "Enviando..."
     },
     "comments": {
       "title": "Comentários",
       "addComment": "+ Adicionar novo comentário",
-      "noComments": "Nenhum comentário ainda. Seja o primeiro a comentar!",
+      "noComments": "Ainda não há comentários. Seja o primeiro a comentar!",
       "delete": "Excluir",
-      "confirmDeleteComment": "Tem certeza de que deseja excluir este comentário?"
+      "confirmDeleteComment": "Tem certeza de que deseja excluir este comentário?",
+      "addCommentPlaceholder": "Adicionar um comentário...",
+      "cancel": "Cancelar",
+      "commentButton": "Comentar",
+      "attachFiles": "Anexar arquivos",
+      "addMoreFiles": "Adicionar mais arquivos",
+      "selectedFiles": "Arquivos selecionados (Até 25MB, Máximo de {count})",
+      "maxFilesError": "Você pode enviar no máximo {count} arquivos",
+      "processFilesError": "Falha ao processar arquivos",
+      "addCommentError": "Por favor, adicione um comentário ou anexe arquivos",
+      "createdBy": "Criado {{time}} por {{user}}",
+      "updatedTime": "Atualizado {{time}}"
     },
     "searchInputPlaceholder": "Pesquisar por nome",
     "pendingInvitation": "Convite pendente"
@@ -81,28 +97,33 @@
     "totalLogged": "Total registrado",
     "exportToExcel": "Exportar para Excel",
     "noTimeLogsFound": "Nenhum registro de tempo encontrado",
-    "timerDisabledTooltip": "O cronômetro está desabilitado porque esta tarefa tem {{count}} subtarefas. O tempo deve ser registrado nas subtarefas individuais.",
-    "timeLogDisabledTooltip": "O registro de tempo está desabilitado porque esta tarefa tem {{count}} subtarefas. O tempo deve ser registrado nas subtarefas individuais.",
-    "date": "Data",
-    "startTime": "Hora de início",
-    "endTime": "Hora de término",
-    "workDescription": "Descrição do trabalho",
-    "requiredFields": "Por favor, preencha todos os campos obrigatórios",
-    "dateRequired": "Por favor, selecione uma data",
-    "startTimeRequired": "Por favor, selecione a hora de início",
-    "endTimeRequired": "Por favor, selecione a hora de término",
-    "workDescriptionPlaceholder": "Adicionar uma descrição",
-    "cancel": "Cancelar",
-    "logTime": "Registrar tempo",
-    "updateTime": "Atualizar tempo"
+    "timeLogForm": {
+      "date": "Data",
+      "startTime": "Hora de início",
+      "endTime": "Hora de término",
+      "workDescription": "Descrição do trabalho",
+      "descriptionPlaceholder": "Adicionar uma descrição",
+      "logTime": "Registrar tempo",
+      "updateTime": "Atualizar tempo",
+      "cancel": "Cancelar",
+      "selectDateError": "Por favor, selecione uma data",
+      "selectStartTimeError": "Por favor, selecione a hora de início",
+      "selectEndTimeError": "Por favor, selecione a hora de término",
+      "endTimeAfterStartError": "A hora de término deve ser posterior à hora de início"
+    }
   },
   "taskActivityLogTab": {
-    "title": "Registro de atividade"
+    "title": "Registro de atividade",
+    "add": "ADICIONAR",
+    "remove": "REMOVER",
+    "none": "Nenhum",
+    "weight": "Peso",
+    "createdTask": "criou a tarefa."
   },
   "taskProgress": {
-    "markAsDoneTitle": "Marcar Tarefa como Concluída?",
+    "markAsDoneTitle": "Marcar tarefa como concluída?",
     "confirmMarkAsDone": "Sim, marcar como concluída",
     "cancelMarkAsDone": "Não, manter status atual",
-    "markAsDoneDescription": "Você definiu o progresso como 100%. Deseja atualizar o status da tarefa para \"Concluída\"?"
+    "markAsDoneDescription": "Você definiu o progresso para 100%. Gostaria de atualizar o status da tarefa para \"Concluída\"?"
   }
-} 
+}

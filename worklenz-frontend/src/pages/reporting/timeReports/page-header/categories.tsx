@@ -1,4 +1,9 @@
-import { fetchReportingProjects, setNoCategory, setSelectOrDeselectAllCategories, setSelectOrDeselectCategory } from '@/features/reporting/time-reports/time-reports-overview.slice';
+import {
+  fetchReportingProjects,
+  setNoCategory,
+  setSelectOrDeselectAllCategories,
+  setSelectOrDeselectCategory,
+} from '@/features/reporting/time-reports/time-reports-overview.slice';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { CaretDownFilled, FilterOutlined, CheckCircleFilled } from '@ant-design/icons';
@@ -202,7 +207,7 @@ const Categories: React.FC = () => {
             }}>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <div 
+                  <div
                     key={item.id}
                     style={{ 
                       padding: '4px 8px',

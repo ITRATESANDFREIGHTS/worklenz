@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button, DatePicker, Form, Input, TimePicker, Flex, Tooltip } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
 
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
@@ -22,11 +22,11 @@ interface TimeLogFormProps {
   mode?: 'create' | 'edit';
 }
 
-const TimeLogForm = ({ 
-  onCancel, 
+const TimeLogForm = ({
+  onCancel,
   onSubmitSuccess,
-  initialValues, 
-  mode = 'create' 
+  initialValues,
+  mode = 'create',
 }: TimeLogFormProps) => {
   const { t } = useTranslation('task-drawer/task-drawer');
   const currentSession = useAuthService().getCurrentSession();
@@ -52,23 +52,23 @@ const TimeLogForm = ({
   React.useEffect(() => {
     if (initialValues && mode === 'edit') {
       const createdAt = dayjs(initialValues.created_at);
-      
+
       const startTime = dayjs(initialValues.start_time || initialValues.created_at);
-      
+
       let endTime;
       if (initialValues.time_spent) {
         endTime = dayjs(startTime).add(initialValues.time_spent, 'second');
       } else {
         endTime = dayjs(initialValues.end_time || initialValues.created_at);
       }
-      
+
       form.setFieldsValue({
         date: createdAt,
         startTime: startTime,
         endTime: endTime,
         description: initialValues.description || '',
       });
-      
+
       setFormValues({
         date: createdAt,
         startTime: startTime,
@@ -148,7 +148,7 @@ const TimeLogForm = ({
       form.setFields([
         {
           name: 'endTime',
-          errors: ['End time must be after start time'],
+          errors: [t('taskTimeLogTab.timeLogForm.endTimeAfterStartError')],
         },
       ]);
       return;
@@ -166,16 +166,14 @@ const TimeLogForm = ({
 
     try {
       if (mode === 'edit' && initialValues?.id) {
-        console.log('Updating time log:', requestBody);
         await taskTimeLogsApiService.update(initialValues.id, requestBody);
       } else {
-        console.log('Creating new time log:', requestBody);
         await taskTimeLogsApiService.create(requestBody);
       }
-      
+
       // Trigger refresh of finance data
       dispatch(setRefreshTimestamp());
-      
+
       // Call onSubmitSuccess if provided, otherwise just cancel
       if (onSubmitSuccess) {
         onSubmitSuccess();
@@ -197,9 +195,9 @@ const TimeLogForm = ({
 
   const getSubmitTooltip = () => {
     if (hasSubTasks) {
-      return t('taskTimeLogTab.timeLogDisabledTooltip', { 
+      return t('taskTimeLogTab.timeLogDisabledTooltip', {
         count: taskFormViewModel?.task?.sub_tasks_count || 0,
-        defaultValue: `Time logging is disabled because this task has ${taskFormViewModel?.task?.sub_tasks_count || 0} subtasks. Time should be logged on individual subtasks.`
+        defaultValue: `Time logging is disabled because this task has ${taskFormViewModel?.task?.sub_tasks_count || 0} subtasks. Time should be logged on individual subtasks.`,
       });
     }
     if (!isFormValid()) {
@@ -221,7 +219,7 @@ const TimeLogForm = ({
         justifySelf: 'flex-end',
         paddingTop: 16,
         paddingBottom: 0,
-        overflow: 'visible'
+        overflow: 'visible',
       }}
     >
       <div
@@ -246,32 +244,39 @@ const TimeLogForm = ({
           <Flex gap={8} wrap="wrap" style={{ width: '100%' }}>
             <Form.Item
               name="date"
-              label={t('taskTimeLogTab.date')}
-              rules={[{ required: true, message: t('taskTimeLogTab.dateRequired') }]}
+              label={t('taskTimeLogTab.timeLogForm.date')}
+              rules={[{ required: true, message: t('taskTimeLogTab.timeLogForm.selectDateError') }]}
             >
               <DatePicker disabledDate={current => current && current.toDate() > new Date()} />
             </Form.Item>
 
             <Form.Item
               name="startTime"
-              label={t('taskTimeLogTab.startTime')}
-              rules={[{ required: true, message: t('taskTimeLogTab.startTimeRequired') }]}
+              label={t('taskTimeLogTab.timeLogForm.startTime')}
+              rules={[
+                { required: true, message: t('taskTimeLogTab.timeLogForm.selectStartTimeError') },
+              ]}
             >
               <TimePicker format="HH:mm" />
             </Form.Item>
 
             <Form.Item
               name="endTime"
-              label={t('taskTimeLogTab.endTime')}
-              rules={[{ required: true, message: t('taskTimeLogTab.endTimeRequired') }]}
+              label={t('taskTimeLogTab.timeLogForm.endTime')}
+              rules={[
+                { required: true, message: t('taskTimeLogTab.timeLogForm.selectEndTimeError') },
+              ]}
             >
               <TimePicker format="HH:mm" />
             </Form.Item>
           </Flex>
         </Form.Item>
-
-        <Form.Item name="description" label={t('taskTimeLogTab.workDescription')} style={{ marginBlockEnd: 12 }}>
-          <Input.TextArea placeholder={t('taskTimeLogTab.workDescriptionPlaceholder')} />
+        <Form.Item
+          name="description"
+          label={t('taskTimeLogTab.timeLogForm.workDescription')}
+          style={{ marginBlockEnd: 12 }}
+        >
+          <Input.TextArea placeholder={t('taskTimeLogTab.timeLogForm.descriptionPlaceholder')} />
         </Form.Item>
 
         <Form.Item style={{ marginBlockEnd: 0 }}>
@@ -283,9 +288,9 @@ const TimeLogForm = ({
                 icon={<ClockCircleOutlined />}
                 disabled={isSubmitDisabled()}
                 htmlType="submit"
-                style={{ 
+                style={{
                   opacity: hasSubTasks ? 0.5 : 1,
-                  cursor: hasSubTasks ? 'not-allowed' : 'pointer'
+                  cursor: hasSubTasks ? 'not-allowed' : 'pointer',
                 }}
               >
                 {mode === 'edit' ? t('taskTimeLogTab.updateTime') : t('taskTimeLogTab.logTime')}

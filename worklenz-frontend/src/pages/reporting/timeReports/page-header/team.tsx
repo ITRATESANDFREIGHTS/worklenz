@@ -8,7 +8,13 @@ import { reportingApiService } from '@/api/reporting/reporting.api.service';
 import logger from '@/utils/errorLogger';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
-import { fetchReportingCategories, fetchReportingProjects, fetchReportingTeams, setSelectOrDeselectAllTeams, setSelectOrDeselectTeam } from '@/features/reporting/time-reports/time-reports-overview.slice';
+import {
+  fetchReportingCategories,
+  fetchReportingProjects,
+  fetchReportingTeams,
+  setSelectOrDeselectAllTeams,
+  setSelectOrDeselectTeam,
+} from '@/features/reporting/time-reports/time-reports-overview.slice';
 
 const Team: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -172,7 +178,7 @@ const Team: React.FC = () => {
               flex: 1
             }}>
               {filteredItems.map(item => (
-                <div 
+                <div
                   key={item.id}
                   style={{ 
                     padding: '4px 8px',

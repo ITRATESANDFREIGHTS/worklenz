@@ -61,7 +61,7 @@ import {
 import { deselectAll } from '@/features/projects/bulkActions/bulkActionSlice';
 
 import TaskListTableWrapper from '@/pages/projects/projectView/taskList/task-list-table/task-list-table-wrapper/task-list-table-wrapper';
-import TaskListBulkActionsBar from '@/components/taskListCommon/task-list-bulk-actions-bar/task-list-bulk-actions-bar';
+
 import TaskTemplateDrawer from '@/components/task-templates/task-template-drawer';
 
 import { useMixpanelTracking } from '@/hooks/useMixpanelTracking';
@@ -117,10 +117,11 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
     (data: ITaskAssigneesUpdateResponse) => {
       if (!data) return;
 
-      const updatedAssignees = data.assignees?.map(assignee => ({
-        ...assignee,
-        selected: true,
-      })) || [];
+      const updatedAssignees =
+        data.assignees?.map(assignee => ({
+          ...assignee,
+          selected: true,
+        })) || [];
 
       const groupId = groups?.find(group =>
         group.tasks?.some(
@@ -158,7 +159,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
   const handleLabelsChange = useCallback(
     async (labels: ILabelsChangeResponse) => {
       if (!labels) return;
-      
+
       await Promise.all([
         dispatch(updateTaskLabel(labels)),
         dispatch(setTaskLabels(labels)),
@@ -226,11 +227,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
 
   // Memoize socket event handlers
   const handleEndDateChange = useCallback(
-    (task: {
-      id: string;
-      parent_task: string | null;
-      end_date: string;
-    }) => {
+    (task: { id: string; parent_task: string | null; end_date: string }) => {
       if (!task) return;
 
       const taskWithProgress = {
@@ -267,11 +264,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
 
   // Memoize socket event handlers
   const handleStartDateChange = useCallback(
-    (task: {
-      id: string;
-      parent_task: string | null;
-      start_date: string;
-    }) => {
+    (task: { id: string; parent_task: string | null; start_date: string }) => {
       if (!task) return;
 
       const taskWithProgress = {
@@ -297,11 +290,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
 
   // Memoize socket event handlers
   const handleEstimationChange = useCallback(
-    (task: {
-      id: string;
-      parent_task: string | null;
-      estimation: number;
-    }) => {
+    (task: { id: string; parent_task: string | null; estimation: number }) => {
       if (!task) return;
 
       const taskWithProgress = {
@@ -316,11 +305,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
 
   // Memoize socket event handlers
   const handleTaskDescriptionChange = useCallback(
-    (data: {
-      id: string;
-      parent_task: string;
-      description: string;
-    }) => {
+    (data: { id: string; parent_task: string; description: string }) => {
       if (!data) return;
 
       dispatch(updateTaskDescription(data));
@@ -342,11 +327,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
 
   // Memoize socket event handlers
   const handleTaskProgressUpdated = useCallback(
-    (data: {
-      task_id: string;
-      progress_value?: number;
-      weight?: number;
-    }) => {
+    (data: { task_id: string; progress_value?: number; weight?: number }) => {
       if (!data || !taskGroups) return;
 
       if (data.progress_value !== undefined) {
@@ -543,6 +524,69 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
         });
       }
 
+      // NEW SIMPLIFIED APPROACH: Calculate all affected task updates and send them
+      const taskUpdates: Array<{
+        task_id: string;
+        sort_order: number;
+        status_id?: string;
+        priority_id?: string;
+        phase_id?: string;
+      }> = [];
+
+      // Add updates for all tasks in affected groups
+      if (activeGroupId === overGroupId) {
+        // Same group - just reorder
+        const updatedTasks = [...sourceGroup.tasks];
+        updatedTasks.splice(fromIndex, 1);
+        updatedTasks.splice(toIndex, 0, task);
+        
+        updatedTasks.forEach((task, index) => {
+          taskUpdates.push({
+            task_id: task.id,
+            sort_order: index + 1, // 1-based indexing
+          });
+        });
+      } else {
+        // Different groups - update both source and target
+        const updatedSourceTasks = sourceGroup.tasks.filter((_, i) => i !== fromIndex);
+        const updatedTargetTasks = [...targetGroup.tasks];
+        
+        if (isTargetGroupEmpty) {
+          updatedTargetTasks.push(task);
+        } else if (toIndex >= 0 && toIndex <= updatedTargetTasks.length) {
+          updatedTargetTasks.splice(toIndex, 0, task);
+        } else {
+          updatedTargetTasks.push(task);
+        }
+
+        // Add updates for source group
+        updatedSourceTasks.forEach((task, index) => {
+          taskUpdates.push({
+            task_id: task.id,
+            sort_order: index + 1,
+          });
+        });
+
+        // Add updates for target group (including the moved task)
+        updatedTargetTasks.forEach((task, index) => {
+          const update: any = {
+            task_id: task.id,
+            sort_order: index + 1,
+          };
+          
+          // Add group-specific updates
+          if (groupBy === IGroupBy.STATUS) {
+            update.status_id = targetGroup.id;
+          } else if (groupBy === IGroupBy.PRIORITY) {
+            update.priority_id = targetGroup.id;
+          } else if (groupBy === IGroupBy.PHASE) {
+            update.phase_id = targetGroup.id;
+          }
+          
+          taskUpdates.push(update);
+        });
+      }
+
       socket?.emit(SocketEvents.TASK_SORT_ORDER_CHANGE.toString(), {
         project_id: projectId,
         from_index: sourceGroup.tasks[fromIndex].sort_order,
@@ -553,6 +597,7 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
         group_by: groupBy,
         task: sourceGroup.tasks[fromIndex],
         team_id: currentSession?.team_id,
+        task_updates: taskUpdates, // NEW: Send calculated updates
       });
 
       setTimeout(resetTaskRowStyles, 0);
@@ -685,8 +730,6 @@ const TaskGroupWrapper = ({ taskGroups, groupBy }: TaskGroupWrapperProps) => {
             activeId={activeId}
           />
         ))}
-
-        {createPortal(<TaskListBulkActionsBar />, document.body, 'bulk-action-container')}
 
         {createPortal(
           <TaskTemplateDrawer showDrawer={false} selectedTemplateId="" onClose={() => {}} />,

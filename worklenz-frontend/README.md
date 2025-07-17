@@ -3,11 +3,13 @@
 Worklenz is a project management application built with React, TypeScript, and Ant Design. The project is bundled using [Vite](https://vitejs.dev/).
 
 ## Table of Contents
+
 - [Getting Started](#getting-started)
 - [Available Scripts](#available-scripts)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [Learn More](#learn-more)
+- [License](#license)
 
 ## Getting Started
 
@@ -93,3 +95,7 @@ To learn more about the technologies used in this project:
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
 - [Ant Design Documentation](https://ant.design/docs/react/introduce)
 - [Vite Documentation](https://vitejs.dev/guide/)
+
+## License
+
+Worklenz is open source and released under the [GNU Affero General Public License Version 3 (AGPLv3)](LICENSE).

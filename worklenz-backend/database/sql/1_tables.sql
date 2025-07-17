@@ -12,7 +12,7 @@ CREATE TYPE DEPENDENCY_TYPE AS ENUM ('blocked_by');
 
 CREATE TYPE SCHEDULE_TYPE AS ENUM ('daily', 'weekly', 'yearly', 'monthly', 'every_x_days', 'every_x_weeks', 'every_x_months');
 
-CREATE TYPE LANGUAGE_TYPE AS ENUM ('en', 'es', 'pt');
+CREATE TYPE LANGUAGE_TYPE AS ENUM ('en', 'es', 'pt', 'alb', 'de', 'zh_cn');
 
 -- Add progress mode type for tasks progress tracking
 CREATE TYPE PROGRESS_MODE_TYPE AS ENUM ('manual', 'weighted', 'time', 'default');
@@ -1531,6 +1531,21 @@ ALTER TABLE tasks
 ALTER TABLE tasks
     ADD CONSTRAINT tasks_total_minutes_check
         CHECK ((total_minutes >= (0)::NUMERIC) AND (total_minutes <= (999999)::NUMERIC));
+
+-- Add constraints for new sort order columns
+ALTER TABLE tasks ADD CONSTRAINT tasks_status_sort_order_check CHECK (status_sort_order >= 0);
+ALTER TABLE tasks ADD CONSTRAINT tasks_priority_sort_order_check CHECK (priority_sort_order >= 0);
+ALTER TABLE tasks ADD CONSTRAINT tasks_phase_sort_order_check CHECK (phase_sort_order >= 0);
+
+-- Add indexes for performance on new sort order columns
+CREATE INDEX IF NOT EXISTS idx_tasks_status_sort_order ON tasks(project_id, status_sort_order);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority_sort_order ON tasks(project_id, priority_sort_order);
+CREATE INDEX IF NOT EXISTS idx_tasks_phase_sort_order ON tasks(project_id, phase_sort_order);
+
+-- Add comments for documentation
+COMMENT ON COLUMN tasks.status_sort_order IS 'Sort order when grouped by status';
+COMMENT ON COLUMN tasks.priority_sort_order IS 'Sort order when grouped by priority';
+COMMENT ON COLUMN tasks.phase_sort_order IS 'Sort order when grouped by phase';
 
 CREATE TABLE IF NOT EXISTS tasks_assignees (
     task_id           UUID                                               NOT NULL,

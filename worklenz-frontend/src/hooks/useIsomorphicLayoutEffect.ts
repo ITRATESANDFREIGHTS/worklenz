@@ -22,4 +22,4 @@ const useIsomorphicLayoutEffect = (() => {
   return useEffect;
 })();
 
-export default useIsomorphicLayoutEffect; 
+export default useIsomorphicLayoutEffect;

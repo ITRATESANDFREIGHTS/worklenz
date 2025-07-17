@@ -360,7 +360,7 @@ const MembersTimeSheet = forwardRef<MembersTimeSheetRef, MembersTimeSheetProps>(
   };
 
   useImperativeHandle(ref, () => ({
-    exportChart
+    exportChart,
   }));
 
   return (

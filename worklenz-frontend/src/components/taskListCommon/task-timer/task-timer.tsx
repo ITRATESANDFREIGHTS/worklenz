@@ -4,10 +4,8 @@ import { colors } from '@/styles/colors';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
 import { calculateTimeGap } from '@/utils/calculate-time-gap';
 import logger from '@/utils/errorLogger';
-import { formatDateTimeWithLocale } from '@/utils/format-date-time-with-locale';
-import { formatDate } from '@/utils/timeUtils';
 import { PlayCircleFilled } from '@ant-design/icons';
-import { Flex, Button, Popover, Typography, Divider, Skeleton, Tooltip, Tag } from 'antd/es';
+import { Flex, Button, Typography, Divider, Skeleton, Tooltip, Tag } from 'antd/es';
 import React from 'react';
 import { useState } from 'react';
 
@@ -61,10 +59,10 @@ const TaskTimer = ({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
-  
+
     // Pad numbers with leading zeros if needed
     const pad = (num: number) => num.toString().padStart(1, '0');
-  
+
     if (hours >= 1) {
       return `${pad(hours)}h ${pad(minutes)}m ${pad(remainingSeconds)}s`;
     } else {

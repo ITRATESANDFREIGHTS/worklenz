@@ -15,12 +15,18 @@ const LanguageSelector = () => {
     { key: 'en', label: 'English' },
     { key: 'es', label: 'Español' },
     { key: 'pt', label: 'Português' },
+    { key: 'alb', label: 'Shqip' },
+    { key: 'de', label: 'Deutsch' },
+    { key: 'zh_cn', label: '简体中文' },
   ];
 
   const languageLabels = {
     en: 'En',
     es: 'Es',
     pt: 'Pt',
+    alb: 'Sq',
+    de: 'de',
+    zh_cn: 'zh_cn',
   };
 
   return (

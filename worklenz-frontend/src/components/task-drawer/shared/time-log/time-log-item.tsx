@@ -60,7 +60,7 @@ const TimeLogItem = ({ log, onDelete }: TimeLogItemProps) => {
 
   const renderActionButtons = () => {
     if (!canDelete) return null;
-    
+
     return (
       <Space size={8}>
         <Button type="link" onClick={handleEdit} style={{ padding: '0', height: 'auto', fontSize: '12px' }}>
